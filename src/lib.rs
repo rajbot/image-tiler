@@ -104,6 +104,34 @@ pub fn tile_image_with_blank_2x1(img: &ImageHandle) -> Result<ImageHandle, JsVal
     Ok(ImageHandle { image: result })
 }
 
+fn fit_image_in_quadrant(image: &DynamicImage, quad_width: u32, quad_height: u32) -> DynamicImage {
+    let img_width = image.width();
+    let img_height = image.height();
+    
+    // Calculate scale to fit within quadrant while maintaining aspect ratio
+    let scale_x = quad_width as f32 / img_width as f32;
+    let scale_y = quad_height as f32 / img_height as f32;
+    let scale = scale_x.min(scale_y);
+    
+    // Calculate new dimensions
+    let new_width = (img_width as f32 * scale) as u32;
+    let new_height = (img_height as f32 * scale) as u32;
+    
+    // Resize the image maintaining aspect ratio
+    let resized = image.resize_exact(new_width, new_height, image::imageops::FilterType::Lanczos3);
+    
+    // Create black quadrant background
+    let mut quadrant = DynamicImage::new_rgb8(quad_width, quad_height);
+    
+    // Center the resized image on the black background
+    let x_offset = (quad_width - new_width) / 2;
+    let y_offset = (quad_height - new_height) / 2;
+    
+    image::imageops::overlay(&mut quadrant, &resized, x_offset as i64, y_offset as i64);
+    
+    quadrant
+}
+
 #[wasm_bindgen]
 pub fn tile_images_2x2_with_blanks_1(img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
     let target_width = 800;
@@ -111,12 +139,12 @@ pub fn tile_images_2x2_with_blanks_1(img1: &ImageHandle) -> Result<ImageHandle, 
     let quad_width = target_width / 2;
     let quad_height = target_height / 2;
 
-    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img1_fitted = fit_image_in_quadrant(&img1.image, quad_width, quad_height);
     let blank = DynamicImage::new_rgb8(quad_width, quad_height);
 
     let mut result = DynamicImage::new_rgb8(target_width, target_height);
 
-    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
+    image::imageops::overlay(&mut result, &img1_fitted, 0, 0);
     image::imageops::overlay(&mut result, &blank, quad_width as i64, 0);
     image::imageops::overlay(&mut result, &blank, 0, quad_height as i64);
     image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
@@ -131,14 +159,14 @@ pub fn tile_images_2x2_with_blanks_2(img1: &ImageHandle, img2: &ImageHandle) -> 
     let quad_width = target_width / 2;
     let quad_height = target_height / 2;
 
-    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img2_resized = img2.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img1_fitted = fit_image_in_quadrant(&img1.image, quad_width, quad_height);
+    let img2_fitted = fit_image_in_quadrant(&img2.image, quad_width, quad_height);
     let blank = DynamicImage::new_rgb8(quad_width, quad_height);
 
     let mut result = DynamicImage::new_rgb8(target_width, target_height);
 
-    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
-    image::imageops::overlay(&mut result, &img2_resized, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &img1_fitted, 0, 0);
+    image::imageops::overlay(&mut result, &img2_fitted, quad_width as i64, 0);
     image::imageops::overlay(&mut result, &blank, 0, quad_height as i64);
     image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
 
@@ -152,16 +180,16 @@ pub fn tile_images_2x2_with_blanks_3(img1: &ImageHandle, img2: &ImageHandle, img
     let quad_width = target_width / 2;
     let quad_height = target_height / 2;
 
-    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img2_resized = img2.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img3_resized = img3.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img1_fitted = fit_image_in_quadrant(&img1.image, quad_width, quad_height);
+    let img2_fitted = fit_image_in_quadrant(&img2.image, quad_width, quad_height);
+    let img3_fitted = fit_image_in_quadrant(&img3.image, quad_width, quad_height);
     let blank = DynamicImage::new_rgb8(quad_width, quad_height);
 
     let mut result = DynamicImage::new_rgb8(target_width, target_height);
 
-    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
-    image::imageops::overlay(&mut result, &img2_resized, quad_width as i64, 0);
-    image::imageops::overlay(&mut result, &img3_resized, 0, quad_height as i64);
+    image::imageops::overlay(&mut result, &img1_fitted, 0, 0);
+    image::imageops::overlay(&mut result, &img2_fitted, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &img3_fitted, 0, quad_height as i64);
     image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
 
     Ok(ImageHandle { image: result })
@@ -179,17 +207,17 @@ pub fn tile_images_2x2(
     let quad_width = target_width / 2;
     let quad_height = target_height / 2;
 
-    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img2_resized = img2.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img3_resized = img3.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
-    let img4_resized = img4.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img1_fitted = fit_image_in_quadrant(&img1.image, quad_width, quad_height);
+    let img2_fitted = fit_image_in_quadrant(&img2.image, quad_width, quad_height);
+    let img3_fitted = fit_image_in_quadrant(&img3.image, quad_width, quad_height);
+    let img4_fitted = fit_image_in_quadrant(&img4.image, quad_width, quad_height);
 
     let mut result = DynamicImage::new_rgb8(target_width, target_height);
 
-    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
-    image::imageops::overlay(&mut result, &img2_resized, quad_width as i64, 0);
-    image::imageops::overlay(&mut result, &img3_resized, 0, quad_height as i64);
-    image::imageops::overlay(&mut result, &img4_resized, quad_width as i64, quad_height as i64);
+    image::imageops::overlay(&mut result, &img1_fitted, 0, 0);
+    image::imageops::overlay(&mut result, &img2_fitted, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &img3_fitted, 0, quad_height as i64);
+    image::imageops::overlay(&mut result, &img4_fitted, quad_width as i64, quad_height as i64);
 
     Ok(ImageHandle { image: result })
 }
