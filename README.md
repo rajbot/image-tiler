@@ -134,10 +134,6 @@ The project includes GitHub Actions for automatic deployment to GitHub Pages.
 6. Push to your branch: `git push origin feature-name`
 7. Create a Pull Request
 
-## License
-
-MIT License - see LICENSE file for details
-
 ## Acknowledgments
 
 - Built with [Rust](https://www.rust-lang.org/) and [WebAssembly](https://webassembly.org/)
