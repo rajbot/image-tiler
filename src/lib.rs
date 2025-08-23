@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use image::{DynamicImage, ImageFormat};
+use image::{DynamicImage, ImageFormat, imageops::FilterType};
 use std::io::Cursor;
 
 #[global_allocator]
@@ -220,6 +220,12 @@ pub fn tile_images_2x2(
     image::imageops::overlay(&mut result, &img4_fitted, quad_width as i64, quad_height as i64);
 
     Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]
+pub fn resize_image(handle: &ImageHandle, width: u32, height: u32) -> ImageHandle {
+    let resized = handle.image.resize(width, height, FilterType::Lanczos3);
+    ImageHandle { image: resized }
 }
 
 #[wasm_bindgen]

@@ -4,6 +4,7 @@ export class UIController {
         this.canvasManager = canvasManager;
         this.wasmModule = wasmModule;
         this.currentTiledImage = null;
+        this.currentTiledHandle = null;
         this.selectedImageIndex = -1;
         this.draggedImageIndex = -1;
         
@@ -21,6 +22,7 @@ export class UIController {
         };
         this.exportButton = document.getElementById('export-btn');
         this.exportFormat = document.getElementById('export-format');
+        this.exportSize = document.getElementById('export-size');
         this.clearButton = document.getElementById('clear-btn');
         this.status = document.getElementById('status');
         this.dragHint = document.getElementById('drag-hint');
@@ -222,6 +224,7 @@ export class UIController {
             
             await this.canvasManager.displayImageFromBytes(imageBytes);
             this.currentTiledImage = imageBytes;
+            this.currentTiledHandle = tiledHandle;
             this.exportButton.disabled = false;
             
         } catch (error) {
@@ -258,6 +261,7 @@ export class UIController {
             
             await this.canvasManager.displayImageFromBytes(imageBytes);
             this.currentTiledImage = imageBytes;
+            this.currentTiledHandle = tiledHandle;
             this.exportButton.disabled = false;
             
             this.updateStatus(`Successfully created ${layout} tile`);
@@ -267,17 +271,29 @@ export class UIController {
         }
     }
 
-    exportImage() {
-        if (!this.currentTiledImage) {
+    async exportImage() {
+        if (!this.currentTiledHandle) {
             this.updateStatus('No tiled image to export');
             return;
         }
 
         try {
             const format = this.exportFormat.value;
-            const filename = `tiled-image.${format}`;
+            const selectedSize = this.exportSize.value;
+            let exportHandle = this.currentTiledHandle;
+            
+            // If not original size, resize the image
+            if (selectedSize !== 'original') {
+                const [width, height] = selectedSize.split('x').map(Number);
+                exportHandle = this.wasmModule.resize_image(this.currentTiledHandle, width, height);
+            }
+            
+            const imageBytes = this.wasmModule.export_image(exportHandle, format);
+            await this.canvasManager.displayImageFromBytes(imageBytes);
+            
+            const filename = `tiled-image-${selectedSize}.${format}`;
             this.canvasManager.downloadImage(filename);
-            this.updateStatus('Image exported successfully');
+            this.updateStatus(`Image exported successfully as ${selectedSize} ${format.toUpperCase()}`);
         } catch (error) {
             console.error('Error exporting image:', error);
             this.updateStatus(`Error exporting image: ${error.message}`);
@@ -298,6 +314,7 @@ export class UIController {
             </div>
         `;
         this.currentTiledImage = null;
+        this.currentTiledHandle = null;
         this.selectedImageIndex = -1;
         this.exportButton.disabled = true;
         this.dragHint.style.display = 'none';

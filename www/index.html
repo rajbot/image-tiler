@@ -250,6 +250,14 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .export-controls label {
+            font-weight: 500;
+            color: #374151;
+            white-space: nowrap;
+            font-size: 0.9rem;
         }
 
         .export-controls select {
@@ -257,6 +265,10 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 0.9rem;
+        }
+
+        .export-size-dropdown {
+            min-width: 150px;
         }
 
         .canvas-container {
@@ -348,6 +360,15 @@
                     </div>
 
                     <div class="export-controls">
+                        <label for="export-size">Size:</label>
+                        <select id="export-size" class="export-size-dropdown">
+                            <option value="original">Original</option>
+                            <option value="1920x1080">1920×1080 (Full HD)</option>
+                            <option value="1280x720">1280×720 (HD)</option>
+                            <option value="1024x768">1024×768</option>
+                            <option value="800x600">800×600</option>
+                            <option value="640x480">640×480</option>
+                        </select>
                         <select id="export-format">
                             <option value="png">PNG</option>
                             <option value="jpeg">JPEG</option>
