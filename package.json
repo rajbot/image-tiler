@@ -6,7 +6,8 @@
   "scripts": {
     "build": "wasm-pack build --target web --out-dir pkg && webpack --mode production",
     "dev": "wasm-pack build --target web --out-dir pkg && webpack serve --mode development",
-    "wasm-build": "wasm-pack build --target web --out-dir pkg"
+    "wasm-build": "wasm-pack build --target web --out-dir pkg",
+    "preview": "npm run build && npx http-server dist -p 8080"
   },
   "devDependencies": {
     "webpack": "^5.89.0",
