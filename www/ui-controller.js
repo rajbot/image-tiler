@@ -226,6 +226,7 @@ export class UIController {
             this.currentTiledImage = imageBytes;
             this.currentTiledHandle = tiledHandle;
             this.exportButton.disabled = false;
+            this.updateExportSizeOptions();
             
         } catch (error) {
             console.error('Error creating auto preview:', error);
@@ -263,12 +264,57 @@ export class UIController {
             this.currentTiledImage = imageBytes;
             this.currentTiledHandle = tiledHandle;
             this.exportButton.disabled = false;
+            this.updateExportSizeOptions();
             
             this.updateStatus(`Successfully created ${layout} tile`);
         } catch (error) {
             console.error('Error tiling images:', error);
             this.updateStatus(`Error tiling images: ${error.message}`);
         }
+    }
+
+    getCurrentTiledDimensions() {
+        if (!this.currentTiledHandle) {
+            return null;
+        }
+        return {
+            width: this.currentTiledHandle.width,
+            height: this.currentTiledHandle.height
+        };
+    }
+
+    updateExportSizeOptions() {
+        const dimensions = this.getCurrentTiledDimensions();
+        if (!dimensions) {
+            // No tiled image, show default options
+            this.exportSize.innerHTML = '<option value="original">Original</option>';
+            return;
+        }
+
+        const { width, height } = dimensions;
+        const aspectRatio = width / height;
+        
+        // Generate size options based on common target sizes
+        const targetSizes = [1920, 1280, 1024, 800, 640];
+        let options = '<option value="original">Original</option>';
+        
+        targetSizes.forEach(targetSize => {
+            let finalWidth, finalHeight;
+            
+            if (aspectRatio > 1) {
+                // Wider than tall - limit by width
+                finalWidth = targetSize;
+                finalHeight = Math.round(targetSize / aspectRatio);
+            } else {
+                // Taller than wide - limit by height  
+                finalHeight = targetSize;
+                finalWidth = Math.round(targetSize * aspectRatio);
+            }
+            
+            options += `<option value="${finalWidth}x${finalHeight}">${finalWidth}×${finalHeight}</option>`;
+        });
+        
+        this.exportSize.innerHTML = options;
     }
 
     async exportImage() {
@@ -319,6 +365,7 @@ export class UIController {
         this.exportButton.disabled = true;
         this.dragHint.style.display = 'none';
         this.updateTileButtons();
+        this.updateExportSizeOptions();
         this.updateStatus('Cleared all images');
     }
 
