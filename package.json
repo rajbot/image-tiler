@@ -1,0 +1,19 @@
+{
+  "name": "image-tiler",
+  "version": "0.1.0",
+  "description": "Image tiling application with Rust/WASM backend",
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg && webpack --mode production",
+    "dev": "wasm-pack build --target web --out-dir pkg && webpack serve --mode development",
+    "wasm-build": "wasm-pack build --target web --out-dir pkg"
+  },
+  "devDependencies": {
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.4",
+    "copy-webpack-plugin": "^11.0.0"
+  },
+  "dependencies": {}
+}
