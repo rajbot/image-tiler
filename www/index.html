@@ -96,6 +96,13 @@
             color: #444;
         }
 
+        .drag-hint {
+            font-size: 0.85rem;
+            color: #667eea;
+            margin: -5px 0 10px 0;
+            font-style: italic;
+        }
+
         .image-list {
             max-height: 300px;
             overflow-y: auto;
@@ -115,6 +122,32 @@
 
         .image-item:last-child {
             border-bottom: none;
+        }
+
+        .image-item.selected {
+            background: #e8edff;
+            border: 2px solid #667eea;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .image-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+
+        .image-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .image-item:hover {
+            background: #f8f9ff;
+        }
+
+        .image-item.drag-over {
+            border-top: 3px solid #667eea;
+            margin-top: 3px;
         }
 
         .image-item img {
@@ -297,6 +330,7 @@
                 </div>
 
                 <div class="section-title">Loaded Images</div>
+                <div id="drag-hint" class="drag-hint" style="display: none;">Drag to rearrange</div>
                 <div id="image-list" class="image-list">
                     <div class="empty-state">
                         <svg viewBox="0 0 24 24" fill="currentColor">

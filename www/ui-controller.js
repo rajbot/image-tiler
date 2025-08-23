@@ -4,6 +4,8 @@ export class UIController {
         this.canvasManager = canvasManager;
         this.wasmModule = wasmModule;
         this.currentTiledImage = null;
+        this.selectedImageIndex = -1;
+        this.draggedImageIndex = -1;
         
         this.initializeElements();
         this.setupEventListeners();
@@ -21,6 +23,7 @@ export class UIController {
         this.exportFormat = document.getElementById('export-format');
         this.clearButton = document.getElementById('clear-btn');
         this.status = document.getElementById('status');
+        this.dragHint = document.getElementById('drag-hint');
     }
 
     setupEventListeners() {
@@ -86,12 +89,12 @@ export class UIController {
         this.updateAutoPreview();
     }
 
-    addImageToList(imageData) {
+    addImageToList(imageData, isSelected = false) {
         // Hide empty state when first image is added
         this.updateImageListEmptyState();
         
         const imageItem = document.createElement('div');
-        imageItem.className = 'image-item';
+        imageItem.className = isSelected ? 'image-item selected' : 'image-item';
         
         const img = document.createElement('img');
         img.src = imageData.url;
@@ -112,7 +115,15 @@ export class UIController {
         removeBtn.className = 'remove-btn';
         removeBtn.onclick = () => {
             const index = Array.from(this.imageList.children).filter(child => 
-                child.className === 'image-item').indexOf(imageItem);
+                child.className.includes('image-item')).indexOf(imageItem);
+            
+            // Adjust selection if needed
+            if (this.selectedImageIndex === index) {
+                this.selectedImageIndex = -1;
+            } else if (this.selectedImageIndex > index) {
+                this.selectedImageIndex--;
+            }
+            
             this.imageLoader.removeImage(index);
             imageItem.remove();
             this.updateTileButtons();
@@ -124,15 +135,53 @@ export class UIController {
         imageItem.appendChild(info);
         imageItem.appendChild(removeBtn);
         
+        // Add selection functionality
+        imageItem.addEventListener('click', (e) => {
+            if (e.target === removeBtn) return; // Don't select when clicking remove
+            this.toggleImageSelection(imageItem);
+        });
+        
+        // Add drag and drop functionality
+        imageItem.draggable = true;
+        imageItem.addEventListener('dragstart', (e) => {
+            this.handleDragStart(e, imageItem);
+        });
+        
+        imageItem.addEventListener('dragover', (e) => {
+            this.handleDragOver(e);
+        });
+        
+        imageItem.addEventListener('dragenter', (e) => {
+            this.handleDragEnter(e, imageItem);
+        });
+        
+        imageItem.addEventListener('dragleave', (e) => {
+            this.handleDragLeave(e, imageItem);
+        });
+        
+        imageItem.addEventListener('drop', (e) => {
+            this.handleDrop(e, imageItem);
+        });
+        
+        imageItem.addEventListener('dragend', (e) => {
+            this.handleDragEnd(e);
+        });
+        
         this.imageList.appendChild(imageItem);
     }
 
     updateImageListEmptyState() {
         const emptyState = this.imageList.querySelector('.empty-state');
-        const hasImages = this.imageLoader.getLoadedImages().length > 0;
+        const imageCount = this.imageLoader.getLoadedImages().length;
+        const hasImages = imageCount > 0;
         
         if (emptyState) {
             emptyState.style.display = hasImages ? 'none' : 'block';
+        }
+        
+        // Show/hide drag hint
+        if (this.dragHint) {
+            this.dragHint.style.display = imageCount >= 2 ? 'block' : 'none';
         }
     }
 
@@ -249,9 +298,123 @@ export class UIController {
             </div>
         `;
         this.currentTiledImage = null;
+        this.selectedImageIndex = -1;
         this.exportButton.disabled = true;
+        this.dragHint.style.display = 'none';
         this.updateTileButtons();
         this.updateStatus('Cleared all images');
+    }
+
+    toggleImageSelection(imageItem) {
+        const imageItems = Array.from(this.imageList.children).filter(child => 
+            child.className.includes('image-item'));
+        const index = imageItems.indexOf(imageItem);
+        
+        if (this.selectedImageIndex === index) {
+            // Unselect
+            imageItem.classList.remove('selected');
+            this.selectedImageIndex = -1;
+        } else {
+            // Clear previous selection
+            if (this.selectedImageIndex >= 0 && imageItems[this.selectedImageIndex]) {
+                imageItems[this.selectedImageIndex].classList.remove('selected');
+            }
+            // Select new image
+            imageItem.classList.add('selected');
+            this.selectedImageIndex = index;
+        }
+    }
+
+    handleDragStart(e, imageItem) {
+        const imageItems = Array.from(this.imageList.children).filter(child => 
+            child.className.includes('image-item'));
+        this.draggedImageIndex = imageItems.indexOf(imageItem);
+        
+        imageItem.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', imageItem.outerHTML);
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    handleDragEnter(e, imageItem) {
+        e.preventDefault();
+        if (!imageItem.classList.contains('dragging')) {
+            imageItem.classList.add('drag-over');
+        }
+    }
+
+    handleDragLeave(e, imageItem) {
+        imageItem.classList.remove('drag-over');
+    }
+
+    handleDrop(e, imageItem) {
+        e.preventDefault();
+        
+        if (this.draggedImageIndex === -1) return;
+        
+        const imageItems = Array.from(this.imageList.children).filter(child => 
+            child.className.includes('image-item'));
+        const dropIndex = imageItems.indexOf(imageItem);
+        
+        if (dropIndex !== -1 && dropIndex !== this.draggedImageIndex) {
+            // Reorder in the data layer
+            const success = this.imageLoader.reorderImages(this.draggedImageIndex, dropIndex);
+            
+            if (success) {
+                // Update selected index if needed
+                if (this.selectedImageIndex === this.draggedImageIndex) {
+                    this.selectedImageIndex = dropIndex;
+                } else if (this.selectedImageIndex >= Math.min(this.draggedImageIndex, dropIndex) &&
+                          this.selectedImageIndex <= Math.max(this.draggedImageIndex, dropIndex)) {
+                    // Adjust selection index for items that shifted
+                    if (this.draggedImageIndex < dropIndex && this.selectedImageIndex > this.draggedImageIndex) {
+                        this.selectedImageIndex--;
+                    } else if (this.draggedImageIndex > dropIndex && this.selectedImageIndex < this.draggedImageIndex) {
+                        this.selectedImageIndex++;
+                    }
+                }
+                
+                // Rebuild the UI list
+                this.rebuildImageList();
+                this.updateAutoPreview();
+                this.updateStatus('Images reordered');
+            }
+        }
+        
+        // Clean up drag styles
+        imageItems.forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    }
+
+    handleDragEnd(e) {
+        const imageItems = Array.from(this.imageList.children).filter(child => 
+            child.className.includes('image-item'));
+        
+        imageItems.forEach(item => {
+            item.classList.remove('dragging', 'drag-over');
+        });
+        
+        this.draggedImageIndex = -1;
+    }
+
+    rebuildImageList() {
+        // Clear current list (except empty state)
+        const emptyState = this.imageList.querySelector('.empty-state');
+        this.imageList.innerHTML = '';
+        if (emptyState && this.imageLoader.getLoadedImages().length === 0) {
+            this.imageList.appendChild(emptyState);
+        }
+        
+        // Rebuild from data
+        const images = this.imageLoader.getLoadedImages();
+        images.forEach((imageData, index) => {
+            this.addImageToList(imageData, index === this.selectedImageIndex);
+        });
     }
 
     updateStatus(message) {

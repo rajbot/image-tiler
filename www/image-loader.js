@@ -76,4 +76,22 @@ export class ImageLoader {
             this.imageHandles.splice(index, 1);
         }
     }
+
+    reorderImages(fromIndex, toIndex) {
+        if (fromIndex >= 0 && fromIndex < this.loadedImages.length &&
+            toIndex >= 0 && toIndex < this.loadedImages.length &&
+            fromIndex !== toIndex) {
+            
+            // Move image data
+            const [imageData] = this.loadedImages.splice(fromIndex, 1);
+            this.loadedImages.splice(toIndex, 0, imageData);
+            
+            // Move handle data
+            const [handleData] = this.imageHandles.splice(fromIndex, 1);
+            this.imageHandles.splice(toIndex, 0, handleData);
+            
+            return true;
+        }
+        return false;
+    }
 }
