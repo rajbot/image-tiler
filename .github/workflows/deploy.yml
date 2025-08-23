@@ -39,6 +39,12 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
+    - name: Run Rust tests
+      run: cargo test
+      
+    - name: Run JavaScript tests
+      run: npm test
+    
     - name: Build project
       run: npm run build
     

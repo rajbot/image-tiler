@@ -1,0 +1,174 @@
+import { CanvasManager } from '../www/canvas-manager.js';
+
+describe('CanvasManager', () => {
+  let canvasManager;
+  let mockCanvas;
+  let mockContext;
+
+  beforeEach(() => {
+    // Create mock canvas element
+    mockContext = {
+      clearRect: jest.fn(),
+      drawImage: jest.fn()
+    };
+
+    mockCanvas = {
+      width: 800,
+      height: 600,
+      getContext: jest.fn(() => mockContext),
+      toDataURL: jest.fn(() => 'data:image/png;base64,mockdata')
+    };
+
+    // Mock getElementById to return our mock canvas
+    document.getElementById = jest.fn(() => mockCanvas);
+    
+    canvasManager = new CanvasManager('test-canvas');
+    jest.clearAllMocks();
+  });
+
+  describe('initialization', () => {
+    test('should initialize with canvas and context', () => {
+      expect(canvasManager.canvas).toBe(mockCanvas);
+      expect(canvasManager.ctx).toBe(mockContext);
+    });
+  });
+
+  describe('displayImage', () => {
+    test('should display image with proper scaling', async () => {
+      const imageData = {
+        url: 'mock-image-url',
+        name: 'test-image.jpg'
+      };
+
+      await canvasManager.displayImage(imageData);
+
+      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 100, 100);
+      expect(mockContext.drawImage).toHaveBeenCalled();
+    });
+
+    test('should handle image load errors', async () => {
+      const imageData = {
+        url: 'invalid-url',
+        name: 'bad-image.jpg'
+      };
+
+      // Mock Image to trigger error
+      const originalImage = global.Image;
+      global.Image = class MockImageError {
+        constructor() {
+          this.onerror = null;
+          this.onload = null;
+        }
+        set src(value) {
+          setTimeout(() => {
+            if (this.onerror) {
+              this.onerror();
+            }
+          }, 0);
+        }
+      };
+
+      await expect(canvasManager.displayImage(imageData)).rejects.toThrow('Failed to load image');
+      
+      global.Image = originalImage;
+    });
+  });
+
+  describe('displayImageFromBytes', () => {
+    test('should create blob and display image', async () => {
+      const imageBytes = new Uint8Array([1, 2, 3, 4]);
+      
+      // Mock Blob constructor
+      global.Blob = jest.fn(() => ({ type: 'image/png' }));
+      
+      await canvasManager.displayImageFromBytes(imageBytes, 'test.png');
+
+      expect(global.Blob).toHaveBeenCalledWith([imageBytes], { type: 'image/png' });
+      expect(global.URL.createObjectURL).toHaveBeenCalled();
+      expect(mockContext.clearRect).toHaveBeenCalled();
+      expect(mockContext.drawImage).toHaveBeenCalled();
+    });
+  });
+
+  describe('clear', () => {
+    test('should clear canvas and current image', () => {
+      canvasManager.currentImage = {
+        url: 'test-url'
+      };
+
+      canvasManager.clear();
+
+      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 800, 600);
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('test-url');
+      expect(canvasManager.currentImage).toBeNull();
+    });
+
+    test('should handle null current image', () => {
+      canvasManager.currentImage = null;
+      
+      expect(() => canvasManager.clear()).not.toThrow();
+      expect(mockContext.clearRect).toHaveBeenCalled();
+    });
+  });
+
+  describe('downloadImage', () => {
+    test('should create download link with blob URL', () => {
+      canvasManager.currentImage = {
+        blob: new Blob(),
+        url: 'blob-url'
+      };
+
+      // Mock DOM manipulation
+      const mockLink = {
+        href: '',
+        download: '',
+        click: jest.fn()
+      };
+      document.createElement = jest.fn(() => mockLink);
+      document.body.appendChild = jest.fn();
+      document.body.removeChild = jest.fn();
+
+      canvasManager.downloadImage('test-image.png');
+
+      expect(document.createElement).toHaveBeenCalledWith('a');
+      expect(mockLink.href).toBe('blob-url');
+      expect(mockLink.download).toBe('test-image.png');
+      expect(mockLink.click).toHaveBeenCalled();
+    });
+
+    test('should use canvas data URL if no blob available', () => {
+      canvasManager.currentImage = {
+        image: {}
+      };
+
+      const mockLink = {
+        href: '',
+        download: '',
+        click: jest.fn()
+      };
+      document.createElement = jest.fn(() => mockLink);
+      document.body.appendChild = jest.fn();
+      document.body.removeChild = jest.fn();
+
+      canvasManager.downloadImage('test.png');
+
+      expect(mockCanvas.toDataURL).toHaveBeenCalled();
+      expect(mockLink.href).toBe('data:image/png;base64,mockdata');
+    });
+
+    test('should throw error if no current image', () => {
+      canvasManager.currentImage = null;
+      
+      expect(() => canvasManager.downloadImage()).toThrow('No image to download');
+    });
+  });
+
+  describe('getCurrentImageData', () => {
+    test('should return current image data', () => {
+      const testImageData = { width: 100, height: 100 };
+      canvasManager.currentImage = testImageData;
+      
+      expect(canvasManager.getCurrentImageData()).toBe(testImageData);
+    });
+  });
+});

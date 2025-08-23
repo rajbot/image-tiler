@@ -239,3 +239,66 @@ pub fn export_image(handle: &ImageHandle, format: &str) -> Result<Vec<u8>, JsVal
 
     Ok(buffer)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{RgbImage, ImageBuffer, Rgb};
+
+    fn create_test_image(width: u32, height: u32, color: [u8; 3]) -> DynamicImage {
+        let img: RgbImage = ImageBuffer::from_fn(width, height, |_, _| {
+            Rgb(color)
+        });
+        DynamicImage::ImageRgb8(img)
+    }
+
+    #[test]
+    fn test_fit_image_in_quadrant_landscape() {
+        let landscape_img = create_test_image(200, 100, [255, 0, 0]); // Red 2:1 landscape
+        let fitted = fit_image_in_quadrant(&landscape_img, 400, 400);
+        
+        assert_eq!(fitted.width(), 400);
+        assert_eq!(fitted.height(), 400);
+        
+        // Image should be scaled to fit width, centered vertically
+        // Original was 200x100, scaled to 400x200, centered in 400x400 quadrant
+    }
+
+    #[test]
+    fn test_fit_image_in_quadrant_portrait() {
+        let portrait_img = create_test_image(100, 200, [0, 255, 0]); // Green 1:2 portrait
+        let fitted = fit_image_in_quadrant(&portrait_img, 400, 400);
+        
+        assert_eq!(fitted.width(), 400);
+        assert_eq!(fitted.height(), 400);
+        
+        // Image should be scaled to fit height, centered horizontally
+        // Original was 100x200, scaled to 200x400, centered in 400x400 quadrant
+    }
+
+    #[test]
+    fn test_fit_image_in_quadrant_square() {
+        let square_img = create_test_image(300, 300, [0, 0, 255]); // Blue square
+        let fitted = fit_image_in_quadrant(&square_img, 400, 400);
+        
+        assert_eq!(fitted.width(), 400);
+        assert_eq!(fitted.height(), 400);
+        
+        // Square image should be scaled to fit exactly
+    }
+
+    // create_blank_image is a WASM function - tested in integration tests
+
+    // Test helper function directly (not exposed to WASM)
+    #[test]
+    fn test_internal_image_operations() {
+        let test_img = create_test_image(100, 100, [255, 0, 0]);
+        
+        // Test direct image operations that don't involve WASM bindings
+        assert_eq!(test_img.width(), 100);
+        assert_eq!(test_img.height(), 100);
+    }
+
+    // Note: export functions use wasm-bindgen and can't be tested in native mode
+    // They will be tested in WASM integration tests instead
+}
