@@ -48,6 +48,13 @@ impl ImageHandle {
 }
 
 #[wasm_bindgen]
+pub fn create_blank_image(width: u32, height: u32) -> ImageHandle {
+    ImageHandle {
+        image: DynamicImage::new_rgb8(width, height),
+    }
+}
+
+#[wasm_bindgen]
 pub fn load_image(data: &[u8]) -> Result<ImageHandle, JsValue> {
     let image = image::load_from_memory(data)
         .map_err(|e| JsValue::from_str(&format!("Failed to load image: {}", e)))?;
@@ -76,6 +83,86 @@ pub fn tile_images_2x1(img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHa
 
     image::imageops::overlay(&mut result, &img1_resized, 0, 0);
     image::imageops::overlay(&mut result, &img2_resized, img1_resized.width() as i64, 0);
+
+    Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]
+pub fn tile_image_with_blank_2x1(img: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    let height = img.image.height();
+    let width = img.image.width();
+    
+    let img_resized = img.image.resize_exact(width, height, image::imageops::FilterType::Lanczos3);
+    let blank = DynamicImage::new_rgb8(width, height);
+
+    let total_width = width * 2;
+    let mut result = DynamicImage::new_rgb8(total_width, height);
+
+    image::imageops::overlay(&mut result, &img_resized, 0, 0);
+    image::imageops::overlay(&mut result, &blank, width as i64, 0);
+
+    Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]
+pub fn tile_images_2x2_with_blanks_1(img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    let target_width = 800;
+    let target_height = 800;
+    let quad_width = target_width / 2;
+    let quad_height = target_height / 2;
+
+    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let blank = DynamicImage::new_rgb8(quad_width, quad_height);
+
+    let mut result = DynamicImage::new_rgb8(target_width, target_height);
+
+    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
+    image::imageops::overlay(&mut result, &blank, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &blank, 0, quad_height as i64);
+    image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
+
+    Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]
+pub fn tile_images_2x2_with_blanks_2(img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    let target_width = 800;
+    let target_height = 800;
+    let quad_width = target_width / 2;
+    let quad_height = target_height / 2;
+
+    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img2_resized = img2.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let blank = DynamicImage::new_rgb8(quad_width, quad_height);
+
+    let mut result = DynamicImage::new_rgb8(target_width, target_height);
+
+    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
+    image::imageops::overlay(&mut result, &img2_resized, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &blank, 0, quad_height as i64);
+    image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
+
+    Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]
+pub fn tile_images_2x2_with_blanks_3(img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    let target_width = 800;
+    let target_height = 800;
+    let quad_width = target_width / 2;
+    let quad_height = target_height / 2;
+
+    let img1_resized = img1.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img2_resized = img2.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let img3_resized = img3.image.resize_exact(quad_width, quad_height, image::imageops::FilterType::Lanczos3);
+    let blank = DynamicImage::new_rgb8(quad_width, quad_height);
+
+    let mut result = DynamicImage::new_rgb8(target_width, target_height);
+
+    image::imageops::overlay(&mut result, &img1_resized, 0, 0);
+    image::imageops::overlay(&mut result, &img2_resized, quad_width as i64, 0);
+    image::imageops::overlay(&mut result, &img3_resized, 0, quad_height as i64);
+    image::imageops::overlay(&mut result, &blank, quad_width as i64, quad_height as i64);
 
     Ok(ImageHandle { image: result })
 }

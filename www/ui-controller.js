@@ -83,6 +83,7 @@ export class UIController {
         
         this.updateStatus(`Loaded ${this.imageLoader.getLoadedImages().length} images`);
         this.updateTileButtons();
+        this.updateAutoPreview();
     }
 
     addImageToList(imageData) {
@@ -111,6 +112,7 @@ export class UIController {
             this.imageLoader.removeImage(index);
             imageItem.remove();
             this.updateTileButtons();
+            this.updateAutoPreview();
         };
         
         imageItem.appendChild(img);
@@ -125,6 +127,44 @@ export class UIController {
         
         this.tileButtons['2x1'].disabled = imageCount < 2;
         this.tileButtons['2x2'].disabled = imageCount < 4;
+    }
+
+    async updateAutoPreview() {
+        const handles = this.imageLoader.getImageHandles().map(item => item.handle);
+        
+        if (handles.length === 0) {
+            this.canvasManager.clear();
+            return;
+        }
+
+        try {
+            let tiledHandle;
+            
+            if (handles.length === 1) {
+                // Show first image with blank on right side (2x1)
+                tiledHandle = this.wasmModule.tile_image_with_blank_2x1(handles[0]);
+            } else if (handles.length === 2) {
+                // Show 2x1 tile with first two images
+                tiledHandle = this.wasmModule.tile_images_2x1(handles[0], handles[1]);
+            } else if (handles.length === 3) {
+                // Show 2x2 tile with 3 images + 1 blank (bottom right)
+                tiledHandle = this.wasmModule.tile_images_2x2_with_blanks_3(handles[0], handles[1], handles[2]);
+            } else if (handles.length >= 4) {
+                // Show full 2x2 tile with first four images
+                tiledHandle = this.wasmModule.tile_images_2x2(handles[0], handles[1], handles[2], handles[3]);
+            }
+
+            const exportFormat = this.exportFormat.value;
+            const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
+            
+            await this.canvasManager.displayImageFromBytes(imageBytes);
+            this.currentTiledImage = imageBytes;
+            this.exportButton.disabled = false;
+            
+        } catch (error) {
+            console.error('Error creating auto preview:', error);
+            this.updateStatus(`Error creating preview: ${error.message}`);
+        }
     }
 
     async performTiling(layout) {
