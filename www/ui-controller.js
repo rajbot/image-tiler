@@ -87,6 +87,9 @@ export class UIController {
     }
 
     addImageToList(imageData) {
+        // Hide empty state when first image is added
+        this.updateImageListEmptyState();
+        
         const imageItem = document.createElement('div');
         imageItem.className = 'image-item';
         
@@ -108,11 +111,13 @@ export class UIController {
         removeBtn.textContent = '×';
         removeBtn.className = 'remove-btn';
         removeBtn.onclick = () => {
-            const index = Array.from(this.imageList.children).indexOf(imageItem);
+            const index = Array.from(this.imageList.children).filter(child => 
+                child.className === 'image-item').indexOf(imageItem);
             this.imageLoader.removeImage(index);
             imageItem.remove();
             this.updateTileButtons();
             this.updateAutoPreview();
+            this.updateImageListEmptyState();
         };
         
         imageItem.appendChild(img);
@@ -120,6 +125,15 @@ export class UIController {
         imageItem.appendChild(removeBtn);
         
         this.imageList.appendChild(imageItem);
+    }
+
+    updateImageListEmptyState() {
+        const emptyState = this.imageList.querySelector('.empty-state');
+        const hasImages = this.imageLoader.getLoadedImages().length > 0;
+        
+        if (emptyState) {
+            emptyState.style.display = hasImages ? 'none' : 'block';
+        }
     }
 
     updateTileButtons() {
@@ -225,6 +239,15 @@ export class UIController {
         this.imageLoader.clear();
         this.canvasManager.clear();
         this.imageList.innerHTML = '';
+        // Restore empty state
+        this.imageList.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z" />
+                </svg>
+                <p>No images loaded yet</p>
+            </div>
+        `;
         this.currentTiledImage = null;
         this.exportButton.disabled = true;
         this.updateTileButtons();
