@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use image::{DynamicImage, ImageFormat, imageops::FilterType};
+use image::{DynamicImage, ImageFormat, RgbaImage, imageops::FilterType};
 use std::io::Cursor;
 
 #[global_allocator]
@@ -220,6 +220,108 @@ pub fn tile_images_2x2(
     image::imageops::overlay(&mut result, &img4_fitted, quad_width as i64, quad_height as i64);
 
     Ok(ImageHandle { image: result })
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_1(rows: u32, cols: u32, img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_2(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_3(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_4(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_5(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_6(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_7(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_8(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7, img8])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_9(rows: u32, cols: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle, img9: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9])
+}
+
+fn tile_images_grid_impl(rows: u32, cols: u32, images: Vec<&ImageHandle>) -> Result<ImageHandle, JsValue> {
+    if rows == 0 || cols == 0 {
+        return Err(JsValue::from_str("Rows and columns must be greater than 0"));
+    }
+
+    console_log!("Grid placement: {}x{} grid, {} images", rows, cols, images.len());
+
+    let grid_capacity = (rows * cols) as usize;
+
+    // Calculate dimensions for each cell based on the largest image
+    let mut max_width = 0;
+    let mut max_height = 0;
+    
+    for img in &images {
+        if img.image.width() > max_width {
+            max_width = img.image.width();
+        }
+        if img.image.height() > max_height {
+            max_height = img.image.height();
+        }
+    }
+
+    let cell_width = max_width;
+    let cell_height = max_height;
+    let final_width = cell_width * cols;
+    let final_height = cell_height * rows;
+
+    // Create result image with black background
+    let mut result = RgbaImage::new(final_width, final_height);
+    
+    // Fill with black
+    for pixel in result.pixels_mut() {
+        *pixel = image::Rgba([0, 0, 0, 255]);
+    }
+
+    // Place images in grid
+    console_log!("Grid placement: {}x{} grid, {} images", rows, cols, images.len());
+    for (index, img_handle) in images.iter().enumerate().take(grid_capacity) {
+        let row = (index as u32) / cols;
+        let col = (index as u32) % cols;
+        
+        console_log!("Image {}: placing at grid position ({}, {}) -> pixel offset ({}, {})", 
+                    index, row, col, col * cell_width, row * cell_height);
+        
+        let fitted_image = fit_image_in_quadrant(&img_handle.image, cell_width, cell_height);
+        
+        // Calculate position to center the fitted image in the cell
+        let x_offset = col * cell_width;
+        let y_offset = row * cell_height;
+        
+        // Overlay the fitted image
+        image::imageops::overlay(&mut result, &fitted_image, x_offset as i64, y_offset as i64);
+    }
+
+    Ok(ImageHandle { image: DynamicImage::ImageRgba8(result) })
 }
 
 #[wasm_bindgen]

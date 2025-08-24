@@ -16,6 +16,7 @@ const mockWasmModule = {
   tile_images_2x1: jest.fn(() => ({ width: 200, height: 100 })),
   tile_images_2x2_with_blanks_3: jest.fn(() => ({ width: 800, height: 800 })),
   tile_images_2x2: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6, img7, img8, img9) => ({ width: cols * 100, height: rows * 100 })),
   resize_image: jest.fn((handle, width, height) => ({ width, height })),
   export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4]))
 };
@@ -126,8 +127,9 @@ describe('Component Integration Tests', () => {
         <input type="file" id="file-input" multiple accept="image/*">
         <div id="drop-zone"></div>
         <div id="image-list"></div>
-        <button id="tile-2x1"></button>
-        <button id="tile-2x2"></button>
+        <input type="number" id="grid-rows" value="1">
+        <input type="number" id="grid-cols" value="2">
+        <button id="apply-grid"></button>
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
@@ -205,6 +207,92 @@ describe('Component Integration Tests', () => {
       expect(mockWasmModule.resize_image).not.toHaveBeenCalled();
       // Verify export_image was called with original handle
       expect(mockWasmModule.export_image).toHaveBeenCalledWith(tiledHandle, 'png');
+    });
+  });
+
+  describe('Grid System Tests', () => {
+    let uiController;
+
+    beforeEach(() => {
+      // Setup DOM elements for UIController
+      document.body.innerHTML = `
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <input type="file" id="file-input" multiple accept="image/*">
+        <div id="drop-zone"></div>
+        <div id="image-list"></div>
+        <input type="number" id="grid-rows" value="1">
+        <input type="number" id="grid-cols" value="2">
+        <button id="apply-grid"></button>
+        <button id="export-btn"></button>
+        <select id="export-format"><option value="png">PNG</option></select>
+        <select id="export-size"><option value="original">Original</option></select>
+        <button id="clear-btn"></button>
+        <div id="status"></div>
+        <div id="drag-hint"></div>
+      `;
+
+      const { UIController } = require('../www/ui-controller.js');
+      uiController = new UIController(imageLoader, canvasManager, mockWasmModule);
+    });
+
+    test('should calculate optimal grid for different image counts', () => {
+      expect(uiController.calculateOptimalGrid(0)).toEqual({ rows: 1, cols: 2 });
+      expect(uiController.calculateOptimalGrid(1)).toEqual({ rows: 1, cols: 2 });
+      expect(uiController.calculateOptimalGrid(2)).toEqual({ rows: 1, cols: 2 });
+      expect(uiController.calculateOptimalGrid(3)).toEqual({ rows: 2, cols: 2 });
+      expect(uiController.calculateOptimalGrid(4)).toEqual({ rows: 2, cols: 2 });
+      expect(uiController.calculateOptimalGrid(5)).toEqual({ rows: 2, cols: 3 }); // Add column since rows <= cols
+      expect(uiController.calculateOptimalGrid(6)).toEqual({ rows: 2, cols: 3 });
+      expect(uiController.calculateOptimalGrid(7)).toEqual({ rows: 2, cols: 4 }); // Add column since rows <= cols
+    });
+
+    test('should update grid inputs correctly', () => {
+      uiController.updateGridInputs(3, 4);
+      expect(document.getElementById('grid-rows').value).toBe('3');
+      expect(document.getElementById('grid-cols').value).toBe('4');
+    });
+
+    test('should call tile_images_grid with correct parameters', async () => {
+      const mockHandles = [
+        { handle: 'handle1' },
+        { handle: 'handle2' },
+        { handle: 'handle3' }
+      ];
+      
+      // Mock getImageHandles to return our test handles
+      imageLoader.getImageHandles = jest.fn(() => mockHandles);
+      
+      // Set grid inputs
+      document.getElementById('grid-rows').value = '2';
+      document.getElementById('grid-cols').value = '3';
+      
+      await uiController.performGridTiling();
+      
+      expect(mockWasmModule.tile_images_grid).toHaveBeenCalledWith(
+        2,
+        3,
+        'handle1',
+        'handle2', 
+        'handle3',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined
+      );
+    });
+
+    test('should handle grid expansion logic correctly', () => {
+      // Test the expansion rule: if rows <= cols, add column, else add row
+      let grid = uiController.calculateOptimalGrid(4); // 2x2
+      expect(grid).toEqual({ rows: 2, cols: 2 });
+      
+      grid = uiController.calculateOptimalGrid(5); // 2x3 (add column since rows <= cols)
+      expect(grid).toEqual({ rows: 2, cols: 3 });
+      
+      grid = uiController.calculateOptimalGrid(7); // 2x4 (add column since rows <= cols after 2x3)
+      expect(grid).toEqual({ rows: 2, cols: 4 });
     });
   });
 });

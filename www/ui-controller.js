@@ -16,10 +16,9 @@ export class UIController {
         this.fileInput = document.getElementById('file-input');
         this.dropZone = document.getElementById('drop-zone');
         this.imageList = document.getElementById('image-list');
-        this.tileButtons = {
-            '2x1': document.getElementById('tile-2x1'),
-            '2x2': document.getElementById('tile-2x2')
-        };
+        this.gridRows = document.getElementById('grid-rows');
+        this.gridCols = document.getElementById('grid-cols');
+        this.applyGridButton = document.getElementById('apply-grid');
         this.exportButton = document.getElementById('export-btn');
         this.exportFormat = document.getElementById('export-format');
         this.exportSize = document.getElementById('export-size');
@@ -50,13 +49,18 @@ export class UIController {
             this.handleFiles(e.dataTransfer.files);
         });
 
-        // Tiling buttons
-        this.tileButtons['2x1'].addEventListener('click', () => {
-            this.performTiling('2x1');
+        // Grid controls
+        this.applyGridButton.addEventListener('click', () => {
+            this.performGridTiling();
         });
 
-        this.tileButtons['2x2'].addEventListener('click', () => {
-            this.performTiling('2x2');
+        // Update grid when input values change
+        this.gridRows.addEventListener('input', () => {
+            this.performGridTiling();
+        });
+
+        this.gridCols.addEventListener('input', () => {
+            this.performGridTiling();
         });
 
         // Export button
@@ -77,7 +81,8 @@ export class UIController {
             if (file.type.startsWith('image/')) {
                 try {
                     const imageData = await this.imageLoader.loadFile(file);
-                    await this.imageLoader.loadImageHandle(imageData, this.wasmModule);
+                    const handle = await this.imageLoader.loadImageHandle(imageData, this.wasmModule);
+                    console.log(`Created WASM handle for ${file.name}:`, handle);
                     this.addImageToList(imageData);
                 } catch (error) {
                     console.error('Error loading image:', error);
@@ -87,7 +92,7 @@ export class UIController {
         }
         
         this.updateStatus(`Loaded ${this.imageLoader.getLoadedImages().length} images`);
-        this.updateTileButtons();
+        this.updateGridControls();
         this.updateAutoPreview();
     }
 
@@ -128,7 +133,7 @@ export class UIController {
             
             this.imageLoader.removeImage(index);
             imageItem.remove();
-            this.updateTileButtons();
+            this.updateGridControls();
             this.updateAutoPreview();
             this.updateImageListEmptyState();
         };
@@ -187,11 +192,9 @@ export class UIController {
         }
     }
 
-    updateTileButtons() {
+    updateGridControls() {
         const imageCount = this.imageLoader.getLoadedImages().length;
-        
-        this.tileButtons['2x1'].disabled = imageCount < 2;
-        this.tileButtons['2x2'].disabled = imageCount < 4;
+        this.applyGridButton.disabled = imageCount === 0;
     }
 
     async updateAutoPreview() {
@@ -199,64 +202,103 @@ export class UIController {
         
         if (handles.length === 0) {
             this.canvasManager.clear();
+            this.currentTiledImage = null;
+            this.currentTiledHandle = null;
+            this.exportButton.disabled = true;
+            this.updateExportSizeOptions();
             return;
         }
 
-        try {
-            let tiledHandle;
-            
-            if (handles.length === 1) {
-                // Show first image with blank on right side (2x1)
-                tiledHandle = this.wasmModule.tile_image_with_blank_2x1(handles[0]);
-            } else if (handles.length === 2) {
-                // Show 2x1 tile with first two images
-                tiledHandle = this.wasmModule.tile_images_2x1(handles[0], handles[1]);
-            } else if (handles.length === 3) {
-                // Show 2x2 tile with 3 images + 1 blank (bottom right)
-                tiledHandle = this.wasmModule.tile_images_2x2_with_blanks_3(handles[0], handles[1], handles[2]);
-            } else if (handles.length >= 4) {
-                // Show full 2x2 tile with first four images
-                tiledHandle = this.wasmModule.tile_images_2x2(handles[0], handles[1], handles[2], handles[3]);
-            }
+        // Calculate optimal grid size and update inputs
+        const optimalGrid = this.calculateOptimalGrid(handles.length);
+        console.log(`Auto-preview: ${handles.length} images -> ${optimalGrid.rows}x${optimalGrid.cols} grid`);
+        this.updateGridInputs(optimalGrid.rows, optimalGrid.cols);
 
-            const exportFormat = this.exportFormat.value;
-            const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
-            
-            await this.canvasManager.displayImageFromBytes(imageBytes);
-            this.currentTiledImage = imageBytes;
-            this.currentTiledHandle = tiledHandle;
-            this.exportButton.disabled = false;
-            this.updateExportSizeOptions();
-            
-        } catch (error) {
-            console.error('Error creating auto preview:', error);
-            this.updateStatus(`Error creating preview: ${error.message}`);
-        }
+        // Use the new grid tiling function
+        await this.performGridTiling();
     }
 
-    async performTiling(layout) {
-        const handles = this.imageLoader.getImageHandles().map(item => item.handle);
+
+    calculateOptimalGrid(imageCount) {
+        if (imageCount === 0) return { rows: 1, cols: 2 };
+        if (imageCount <= 2) return { rows: 1, cols: 2 };
+        if (imageCount <= 4) return { rows: 2, cols: 2 };
         
-        if (layout === '2x1' && handles.length < 2) {
-            this.updateStatus('Need at least 2 images for 2x1 tiling');
-            return;
+        // For more than 4 images, use the expansion rule
+        let rows = 2;
+        let cols = 2;
+        let capacity = rows * cols;
+        
+        while (capacity < imageCount) {
+            if (rows <= cols) {
+                cols++;
+            } else {
+                rows++;
+            }
+            capacity = rows * cols;
         }
         
-        if (layout === '2x2' && handles.length < 4) {
-            this.updateStatus('Need at least 4 images for 2x2 tiling');
+        return { rows, cols };
+    }
+
+    updateGridInputs(rows, cols) {
+        this.gridRows.value = rows;
+        this.gridCols.value = cols;
+    }
+
+    async performGridTiling() {
+        const handles = this.imageLoader.getImageHandles().map(item => item.handle);
+        console.log(`Available image handles: ${handles.length}`, handles);
+        
+        if (handles.length === 0) {
+            this.updateStatus('No images to tile');
+            return;
+        }
+
+        const rows = parseInt(this.gridRows.value);
+        const cols = parseInt(this.gridCols.value);
+        
+        if (rows <= 0 || cols <= 0) {
+            this.updateStatus('Rows and columns must be greater than 0');
             return;
         }
 
         try {
-            this.updateStatus('Tiling images...');
+            console.log(`Performing grid tiling: ${handles.length} images in ${rows}x${cols} grid`);
             
+            // Call the appropriate function based on number of images
             let tiledHandle;
-            if (layout === '2x1') {
-                tiledHandle = this.wasmModule.tile_images_2x1(handles[0], handles[1]);
-            } else if (layout === '2x2') {
-                tiledHandle = this.wasmModule.tile_images_2x2(handles[0], handles[1], handles[2], handles[3]);
+            switch (handles.length) {
+                case 1:
+                    tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, handles[0]);
+                    break;
+                case 2:
+                    tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, handles[0], handles[1]);
+                    break;
+                case 3:
+                    tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, handles[0], handles[1], handles[2]);
+                    break;
+                case 4:
+                    tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, handles[0], handles[1], handles[2], handles[3]);
+                    break;
+                case 5:
+                    tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4]);
+                    break;
+                case 6:
+                    tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5]);
+                    break;
+                case 7:
+                    tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6]);
+                    break;
+                case 8:
+                    tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7]);
+                    break;
+                case 9:
+                    tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7], handles[8]);
+                    break;
+                default:
+                    throw new Error(`Unsupported number of images: ${handles.length}. Maximum supported is 9 images.`);
             }
-
             const exportFormat = this.exportFormat.value;
             const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
             
@@ -266,7 +308,7 @@ export class UIController {
             this.exportButton.disabled = false;
             this.updateExportSizeOptions();
             
-            this.updateStatus(`Successfully created ${layout} tile`);
+            this.updateStatus(`Successfully created ${rows}×${cols} grid`);
         } catch (error) {
             console.error('Error tiling images:', error);
             this.updateStatus(`Error tiling images: ${error.message}`);
@@ -364,7 +406,7 @@ export class UIController {
         this.selectedImageIndex = -1;
         this.exportButton.disabled = true;
         this.dragHint.style.display = 'none';
-        this.updateTileButtons();
+        this.updateGridControls();
         this.updateExportSizeOptions();
         this.updateStatus('Cleared all images');
     }

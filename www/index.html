@@ -193,10 +193,39 @@
             margin: 20px 0;
         }
 
-        .tile-buttons {
+        .grid-controls {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            gap: 15px;
             margin-bottom: 15px;
+        }
+
+        .grid-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .grid-input-group label {
+            font-weight: 500;
+            color: #374151;
+            min-width: 70px;
+            font-size: 0.9rem;
+        }
+
+        .grid-input {
+            padding: 8px 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .grid-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .btn {
@@ -312,8 +341,8 @@
                 gap: 20px;
             }
             
-            .tile-buttons {
-                flex-direction: column;
+            .grid-controls {
+                gap: 10px;
             }
             
             .export-controls {
@@ -326,7 +355,7 @@
     <div class="container">
         <header class="header">
             <h1>🖼️ Image Tiler</h1>
-            <p>Tile your images side-by-side or in a 2x2 grid with WebAssembly-powered processing</p>
+            <p>Tile your images side-by-side or in a grid with WebAssembly-powered processing</p>
         </header>
 
         <div class="main-content">
@@ -352,11 +381,18 @@
                     </div>
                 </div>
 
-                <div class="section-title">Tiling Options</div>
+                <div class="section-title">Grid Layout</div>
                 <div class="controls">
-                    <div class="tile-buttons">
-                        <button id="tile-2x1" class="btn btn-primary" disabled>2x1 Tile</button>
-                        <button id="tile-2x2" class="btn btn-secondary" disabled>2x2 Tile</button>
+                    <div class="grid-controls">
+                        <div class="grid-input-group">
+                            <label for="grid-rows">Rows:</label>
+                            <input type="number" id="grid-rows" class="grid-input" min="1" max="10" value="1">
+                        </div>
+                        <div class="grid-input-group">
+                            <label for="grid-cols">Columns:</label>
+                            <input type="number" id="grid-cols" class="grid-input" min="1" max="10" value="2">
+                        </div>
+                        <button id="apply-grid" class="btn btn-primary">Apply Grid</button>
                     </div>
 
                     <div class="export-controls">
