@@ -16,7 +16,15 @@ const mockWasmModule = {
   tile_images_2x1: jest.fn(() => ({ width: 200, height: 100 })),
   tile_images_2x2_with_blanks_3: jest.fn(() => ({ width: 800, height: 800 })),
   tile_images_2x2: jest.fn(() => ({ width: 800, height: 800 })),
-  tile_images_grid: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6, img7, img8, img9) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_1: jest.fn((rows, cols, img1) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_2: jest.fn((rows, cols, img1, img2) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_3: jest.fn((rows, cols, img1, img2, img3) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_4: jest.fn((rows, cols, img1, img2, img3, img4) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_5: jest.fn((rows, cols, img1, img2, img3, img4, img5) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_6: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_7: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6, img7) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_8: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6, img7, img8) => ({ width: cols * 100, height: rows * 100 })),
+  tile_images_grid_9: jest.fn((rows, cols, img1, img2, img3, img4, img5, img6, img7, img8, img9) => ({ width: cols * 100, height: rows * 100 })),
   resize_image: jest.fn((handle, width, height) => ({ width, height })),
   export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4]))
 };
@@ -268,18 +276,12 @@ describe('Component Integration Tests', () => {
       
       await uiController.performGridTiling();
       
-      expect(mockWasmModule.tile_images_grid).toHaveBeenCalledWith(
+      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(
         2,
         3,
         'handle1',
         'handle2', 
-        'handle3',
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined
+        'handle3'
       );
     });
 
