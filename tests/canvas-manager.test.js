@@ -196,4 +196,117 @@ describe('CanvasManager', () => {
       expect(canvasManager.getCurrentImageData()).toBe(testImageData);
     });
   });
+
+  describe('image selection', () => {
+    beforeEach(() => {
+      // Setup image positions for selection testing
+      canvasManager.imagePositions = [
+        { x: 0, y: 0, width: 100, height: 100 },
+        { x: 100, y: 0, width: 100, height: 100 },
+        { x: 0, y: 100, width: 100, height: 100 }
+      ];
+      canvasManager.currentImage = {
+        image: new Image(),
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 200
+      };
+    });
+
+    test('should select image when clicked within bounds', () => {
+      const mockCallback = jest.fn();
+      canvasManager.onImageSelected = mockCallback;
+
+      // Click on first image (position 0)
+      canvasManager.handleCanvasClick(50, 50);
+
+      expect(canvasManager.selectedImageIndex).toBe(0);
+      expect(mockCallback).toHaveBeenCalledWith(0);
+    });
+
+    test('should select different image when clicked', () => {
+      const mockCallback = jest.fn();
+      canvasManager.onImageSelected = mockCallback;
+
+      // Click on second image (position 1)
+      canvasManager.handleCanvasClick(150, 50);
+
+      expect(canvasManager.selectedImageIndex).toBe(1);
+      expect(mockCallback).toHaveBeenCalledWith(1);
+    });
+
+    test('should deselect when clicking on already selected image', () => {
+      const mockCallback = jest.fn();
+      canvasManager.onImageSelected = mockCallback;
+      canvasManager.selectedImageIndex = 0; // Pre-select first image
+
+      // Click on same image again
+      canvasManager.handleCanvasClick(50, 50);
+
+      expect(canvasManager.selectedImageIndex).toBe(-1);
+      expect(mockCallback).toHaveBeenCalledWith(-1);
+    });
+
+    test('should deselect when clicking outside all images', () => {
+      const mockCallback = jest.fn();
+      canvasManager.onImageSelected = mockCallback;
+      canvasManager.selectedImageIndex = 0; // Pre-select first image
+
+      // Click outside all image bounds
+      canvasManager.handleCanvasClick(300, 300);
+
+      expect(canvasManager.selectedImageIndex).toBe(-1);
+      expect(mockCallback).toHaveBeenCalledWith(-1);
+    });
+
+    test('should not trigger callback when no callback is set', () => {
+      canvasManager.onImageSelected = null;
+
+      // Should not throw error
+      expect(() => {
+        canvasManager.handleCanvasClick(50, 50);
+      }).not.toThrow();
+
+      expect(canvasManager.selectedImageIndex).toBe(0);
+    });
+
+    test('should redraw with selection when image is selected', () => {
+      const redrawSpy = jest.spyOn(canvasManager, 'redrawWithSelection');
+      
+      canvasManager.handleCanvasClick(50, 50);
+
+      expect(redrawSpy).toHaveBeenCalled();
+    });
+
+    test('should draw marching ants when image is selected', () => {
+      canvasManager.selectedImageIndex = 0;
+      const marchingAntsSpy = jest.spyOn(canvasManager, 'drawMarchingAnts');
+
+      canvasManager.redrawWithSelection();
+
+      expect(marchingAntsSpy).toHaveBeenCalledWith(0, 0, 100, 100);
+    });
+
+    test('should not draw marching ants when no image is selected', () => {
+      canvasManager.selectedImageIndex = -1;
+      const marchingAntsSpy = jest.spyOn(canvasManager, 'drawMarchingAnts');
+
+      canvasManager.redrawWithSelection();
+
+      expect(marchingAntsSpy).not.toHaveBeenCalled();
+    });
+
+    test('should clear selection when canvas is cleared', () => {
+      const mockCallback = jest.fn();
+      canvasManager.onImageSelected = mockCallback;
+      canvasManager.selectedImageIndex = 1; // Pre-select image
+
+      canvasManager.clear();
+
+      expect(canvasManager.selectedImageIndex).toBe(-1);
+      expect(canvasManager.imagePositions).toEqual([]);
+      expect(mockCallback).toHaveBeenCalledWith(-1);
+    });
+  });
 });
