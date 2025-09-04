@@ -476,7 +476,11 @@ export class UIController {
             }
             
             const imageBytes = this.wasmModule.export_image(exportHandle, format);
-            await this.canvasManager.displayImageFromBytes(imageBytes);
+            
+            // Get current grid info from canvas manager to preserve selection functionality
+            const currentGridInfo = this.canvasManager.getCurrentImageData()?.gridInfo;
+            
+            await this.canvasManager.displayImageFromBytes(imageBytes, 'exported-result', currentGridInfo);
             
             const filename = `tiled-image-${selectedSize}.${format}`;
             this.canvasManager.downloadImage(filename);
