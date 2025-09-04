@@ -38,9 +38,28 @@ export class ImageLoader {
     async loadImageHandle(imageData, wasmModule) {
         try {
             const handle = wasmModule.load_image(imageData.data);
+            
+            // Check if image needs proxy for performance (threshold: 1200px)
+            const needsProxy = wasmModule.needs_proxy_image(handle, 1200);
+            let proxyHandle = null;
+            
+            if (needsProxy) {
+                console.log(`Creating proxy for large image: ${handle.width}x${handle.height}`);
+                proxyHandle = wasmModule.create_proxy_image(handle, 800);
+                console.log(`Proxy created: ${proxyHandle.width}x${proxyHandle.height}`);
+            } else {
+                console.log(`Image is small enough, no proxy needed: ${handle.width}x${handle.height}`);
+            }
+            
             this.imageHandles.push({
-                handle: handle,
+                handle: handle,           // Original full-resolution handle
+                proxyHandle: proxyHandle, // Lower-resolution proxy (null if not needed)
+                needsProxy: needsProxy,   // Boolean flag
                 metadata: imageData,
+                dimensions: {             // Store original dimensions
+                    width: handle.width,
+                    height: handle.height
+                },
                 zoom: 100,  // Default zoom level
                 offsetX: 0, // Default X offset
                 offsetY: 0  // Default Y offset
@@ -65,6 +84,17 @@ export class ImageLoader {
                 URL.revokeObjectURL(img.url);
             }
         });
+        
+        // Free WASM handles
+        this.imageHandles.forEach(item => {
+            if (item.handle && typeof item.handle.free === 'function') {
+                item.handle.free();
+            }
+            if (item.proxyHandle && typeof item.proxyHandle.free === 'function') {
+                item.proxyHandle.free();
+            }
+        });
+        
         this.loadedImages = [];
         this.imageHandles = [];
     }
@@ -75,6 +105,18 @@ export class ImageLoader {
             if (img.url) {
                 URL.revokeObjectURL(img.url);
             }
+            
+            // Free WASM handles for removed image
+            const handleItem = this.imageHandles[index];
+            if (handleItem) {
+                if (handleItem.handle && typeof handleItem.handle.free === 'function') {
+                    handleItem.handle.free();
+                }
+                if (handleItem.proxyHandle && typeof handleItem.proxyHandle.free === 'function') {
+                    handleItem.proxyHandle.free();
+                }
+            }
+            
             this.loadedImages.splice(index, 1);
             this.imageHandles.splice(index, 1);
         }
@@ -130,5 +172,47 @@ export class ImageLoader {
             };
         }
         return { x: 0, y: 0 }; // Default offset
+    }
+
+    /**
+     * Get the appropriate handle for an image (proxy for preview, original for export)
+     * @param {number} index - Image index
+     * @param {boolean} useProxy - Whether to use proxy handle if available (default: true)
+     * @returns {Object} The WASM ImageHandle
+     */
+    getImageHandle(index, useProxy = true) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            const item = this.imageHandles[index];
+            // Use proxy if requested and available, otherwise use original
+            if (useProxy && item.proxyHandle) {
+                return item.proxyHandle;
+            }
+            return item.handle;
+        }
+        return null;
+    }
+
+    /**
+     * Get image dimensions (always from original handle)
+     * @param {number} index - Image index
+     * @returns {Object} {width, height}
+     */
+    getImageDimensions(index) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            return this.imageHandles[index].dimensions;
+        }
+        return { width: 0, height: 0 };
+    }
+
+    /**
+     * Check if image has proxy handle
+     * @param {number} index - Image index
+     * @returns {boolean}
+     */
+    hasProxy(index) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            return this.imageHandles[index].needsProxy && this.imageHandles[index].proxyHandle !== null;
+        }
+        return false;
     }
 }

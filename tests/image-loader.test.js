@@ -208,4 +208,81 @@ describe('ImageLoader', () => {
       expect(imageLoader.getImageZoom(3)).toBe(100);
     });
   });
+
+  describe('Proxy Handle Management', () => {
+    beforeEach(async () => {
+      const file1 = new File(['data1'], 'small.jpg');
+      const file2 = new File(['data2'], 'large.jpg');
+      
+      await imageLoader.loadFile(file1);
+      await imageLoader.loadFile(file2);
+      
+      // Mock image handles with proxy functionality
+      imageLoader.imageHandles[0] = { 
+        handle: { width: 800, height: 600, free: jest.fn() },
+        proxyHandle: null,
+        needsProxy: false,
+        dimensions: { width: 800, height: 600 },
+        metadata: { name: 'small.jpg' },
+        zoom: 100, offsetX: 0, offsetY: 0
+      };
+      
+      imageLoader.imageHandles[1] = { 
+        handle: { width: 2000, height: 1500, free: jest.fn() },
+        proxyHandle: { width: 800, height: 600, free: jest.fn() },
+        needsProxy: true,
+        dimensions: { width: 2000, height: 1500 },
+        metadata: { name: 'large.jpg' },
+        zoom: 100, offsetX: 0, offsetY: 0
+      };
+    });
+
+    test('should return proxy handle when requested for large images', () => {
+      const handle = imageLoader.getImageHandle(1, true);
+      expect(handle).toBe(imageLoader.imageHandles[1].proxyHandle);
+    });
+
+    test('should return original handle when proxy not requested', () => {
+      const handle = imageLoader.getImageHandle(1, false);
+      expect(handle).toBe(imageLoader.imageHandles[1].handle);
+    });
+
+    test('should return original handle for small images even when proxy requested', () => {
+      const handle = imageLoader.getImageHandle(0, true);
+      expect(handle).toBe(imageLoader.imageHandles[0].handle);
+    });
+
+    test('should correctly identify images with proxy', () => {
+      expect(imageLoader.hasProxy(0)).toBe(false);
+      expect(imageLoader.hasProxy(1)).toBe(true);
+    });
+
+    test('should return correct dimensions from original image', () => {
+      expect(imageLoader.getImageDimensions(0)).toEqual({ width: 800, height: 600 });
+      expect(imageLoader.getImageDimensions(1)).toEqual({ width: 2000, height: 1500 });
+    });
+
+    test('should free both handles when removing image', () => {
+      const handleItem = imageLoader.imageHandles[1];
+      const originalFree = handleItem.handle.free;
+      const proxyFree = handleItem.proxyHandle.free;
+      
+      imageLoader.removeImage(1);
+      
+      expect(originalFree).toHaveBeenCalled();
+      expect(proxyFree).toHaveBeenCalled();
+    });
+
+    test('should free all handles when clearing', () => {
+      const handle0Free = imageLoader.imageHandles[0].handle.free;
+      const handle1Free = imageLoader.imageHandles[1].handle.free;
+      const proxy1Free = imageLoader.imageHandles[1].proxyHandle.free;
+      
+      imageLoader.clear();
+      
+      expect(handle0Free).toHaveBeenCalled();
+      expect(handle1Free).toHaveBeenCalled();
+      expect(proxy1Free).toHaveBeenCalled();
+    });
+  });
 });
