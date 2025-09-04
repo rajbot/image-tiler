@@ -267,6 +267,52 @@ pub fn tile_images_grid_9(rows: u32, cols: u32, img1: &ImageHandle, img2: &Image
     tile_images_grid_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9])
 }
 
+// New function with custom tile dimensions
+#[wasm_bindgen]  
+pub fn tile_images_grid_1_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_2_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_3_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_4_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_5_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_6_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_7_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_8_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7, img8])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_9_custom(rows: u32, cols: u32, tile_width: u32, tile_height: u32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle, img9: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9])
+}
+
 fn tile_images_grid_impl(rows: u32, cols: u32, images: Vec<&ImageHandle>) -> Result<ImageHandle, JsValue> {
     if rows == 0 || cols == 0 {
         return Err(JsValue::from_str("Rows and columns must be greater than 0"));
@@ -316,6 +362,50 @@ fn tile_images_grid_impl(rows: u32, cols: u32, images: Vec<&ImageHandle>) -> Res
         // Calculate position to center the fitted image in the cell
         let x_offset = col * cell_width;
         let y_offset = row * cell_height;
+        
+        // Overlay the fitted image
+        image::imageops::overlay(&mut result, &fitted_image, x_offset as i64, y_offset as i64);
+    }
+
+    Ok(ImageHandle { image: DynamicImage::ImageRgba8(result) })
+}
+
+fn tile_images_grid_custom_impl(rows: u32, cols: u32, tile_width: u32, tile_height: u32, images: Vec<&ImageHandle>) -> Result<ImageHandle, JsValue> {
+    if rows == 0 || cols == 0 {
+        return Err(JsValue::from_str("Rows and columns must be greater than 0"));
+    }
+    
+    if tile_width == 0 || tile_height == 0 {
+        return Err(JsValue::from_str("Tile dimensions must be greater than 0"));
+    }
+
+    console_log!("Grid placement with custom tiles: {}x{} grid, {}x{} tile size, {} images", rows, cols, tile_width, tile_height, images.len());
+
+    let grid_capacity = (rows * cols) as usize;
+    let final_width = tile_width * cols;
+    let final_height = tile_height * rows;
+
+    // Create result image with black background
+    let mut result = RgbaImage::new(final_width, final_height);
+    
+    // Fill with black
+    for pixel in result.pixels_mut() {
+        *pixel = image::Rgba([0, 0, 0, 255]);
+    }
+
+    // Place images in grid using custom tile dimensions
+    for (index, img_handle) in images.iter().enumerate().take(grid_capacity) {
+        let row = (index as u32) / cols;
+        let col = (index as u32) % cols;
+        
+        console_log!("Image {}: placing at grid position ({}, {}) -> pixel offset ({}, {})", 
+                    index, row, col, col * tile_width, row * tile_height);
+        
+        let fitted_image = fit_image_in_quadrant(&img_handle.image, tile_width, tile_height);
+        
+        // Calculate position to center the fitted image in the cell
+        let x_offset = col * tile_width;
+        let y_offset = row * tile_height;
         
         // Overlay the fitted image
         image::imageops::overlay(&mut result, &fitted_image, x_offset as i64, y_offset as i64);

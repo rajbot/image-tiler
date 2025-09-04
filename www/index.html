@@ -248,18 +248,52 @@
 
         .tile-dimension {
             padding: 8px 12px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid #d1d5db;
             border-radius: 6px;
             font-size: 14px;
             width: 90px;
             text-align: center;
-            background-color: #f9fafb;
-            color: #6b7280;
+            background-color: white;
+            color: #374151;
             font-family: monospace;
+        }
+
+        .tile-dimension:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .tile-dimension::placeholder {
             color: #9ca3af;
+        }
+
+        .aspect-ratio-lock {
+            padding: 6px 8px;
+            background: #f3f4f6;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 0 4px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .aspect-ratio-lock:hover {
+            background: #e5e7eb;
+        }
+
+        .aspect-ratio-lock.locked {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .tile-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .btn {
@@ -602,12 +636,16 @@
                         <div class="grid-input-group">
                             <label for="grid-cols">Columns:</label>
                             <input type="number" id="grid-cols" class="grid-input" min="1" max="10" value="2">
-                            <input type="text" id="tile-width" class="tile-dimension" readonly placeholder="Width">
+                            <input type="number" id="tile-width" class="tile-dimension" min="1" max="10000" step="1" placeholder="Width">
                         </div>
                         <div class="grid-input-group">
                             <label for="grid-rows">Rows:</label>
                             <input type="number" id="grid-rows" class="grid-input" min="1" max="10" value="1">
-                            <input type="text" id="tile-height" class="tile-dimension" readonly placeholder="Height">
+                            <input type="number" id="tile-height" class="tile-dimension" min="1" max="10000" step="1" placeholder="Height">
+                        </div>
+                        <div class="grid-input-group">
+                            <label>Aspect Ratio:</label>
+                            <button id="aspect-lock" class="aspect-ratio-lock locked" title="Unlock aspect ratio">🔗 Locked</button>
                         </div>
                         <button id="apply-grid" class="btn btn-primary">Apply Grid</button>
                     </div>

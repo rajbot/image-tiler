@@ -21,7 +21,12 @@ export class UIController {
         this.gridCols = document.getElementById('grid-cols');
         this.tileHeight = document.getElementById('tile-height');
         this.tileWidth = document.getElementById('tile-width');
+        this.aspectLock = document.getElementById('aspect-lock');
         this.applyGridButton = document.getElementById('apply-grid');
+        
+        // Track custom tile dimensions and aspect ratio lock state
+        this.aspectRatioLocked = true;
+        this.customTileDimensions = null;
         this.exportButton = document.getElementById('export-btn');
         this.exportFormat = document.getElementById('export-format');
         this.exportSize = document.getElementById('export-size');
@@ -73,6 +78,25 @@ export class UIController {
         this.gridCols.addEventListener('input', () => {
             this.performGridTiling();
         });
+
+        // Tile dimension controls (optional - may not exist in tests)
+        if (this.tileWidth) {
+            this.tileWidth.addEventListener('input', () => {
+                this.onTileWidthChange();
+            });
+        }
+
+        if (this.tileHeight) {
+            this.tileHeight.addEventListener('input', () => {
+                this.onTileHeightChange();
+            });
+        }
+
+        if (this.aspectLock) {
+            this.aspectLock.addEventListener('click', () => {
+                this.toggleAspectRatioLock();
+            });
+        }
 
         // Export button
         this.exportButton.addEventListener('click', () => {
@@ -463,38 +487,83 @@ export class UIController {
                 }
             });
             
-            // Call the appropriate function based on number of images
+            // Call the appropriate function based on number of images and custom tile dimensions
             let tiledHandle;
-            switch (zoomedHandles.length) {
-                case 1:
-                    tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, zoomedHandles[0]);
-                    break;
-                case 2:
-                    tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, zoomedHandles[0], zoomedHandles[1]);
-                    break;
-                case 3:
-                    tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
-                    break;
-                case 4:
-                    tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
-                    break;
-                case 5:
-                    tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
-                    break;
-                case 6:
-                    tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
-                    break;
-                case 7:
-                    tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
-                    break;
-                case 8:
-                    tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
-                    break;
-                case 9:
-                    tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
-                    break;
-                default:
-                    throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
+            
+            // Check if we should use custom tile dimensions
+            const useCustomDimensions = this.customTileDimensions && 
+                                      this.customTileDimensions.width > 0 && 
+                                      this.customTileDimensions.height > 0;
+            
+            if (useCustomDimensions) {
+                const tileWidth = this.customTileDimensions.width;
+                const tileHeight = this.customTileDimensions.height;
+                console.log(`Using custom tile dimensions: ${tileWidth}×${tileHeight}`);
+                
+                switch (zoomedHandles.length) {
+                    case 1:
+                        tiledHandle = this.wasmModule.tile_images_grid_1_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0]);
+                        break;
+                    case 2:
+                        tiledHandle = this.wasmModule.tile_images_grid_2_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1]);
+                        break;
+                    case 3:
+                        tiledHandle = this.wasmModule.tile_images_grid_3_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
+                        break;
+                    case 4:
+                        tiledHandle = this.wasmModule.tile_images_grid_4_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
+                        break;
+                    case 5:
+                        tiledHandle = this.wasmModule.tile_images_grid_5_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
+                        break;
+                    case 6:
+                        tiledHandle = this.wasmModule.tile_images_grid_6_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
+                        break;
+                    case 7:
+                        tiledHandle = this.wasmModule.tile_images_grid_7_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
+                        break;
+                    case 8:
+                        tiledHandle = this.wasmModule.tile_images_grid_8_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
+                        break;
+                    case 9:
+                        tiledHandle = this.wasmModule.tile_images_grid_9_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
+                        break;
+                    default:
+                        throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
+                }
+            } else {
+                // Use automatic tile sizing based on largest image
+                switch (zoomedHandles.length) {
+                    case 1:
+                        tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, zoomedHandles[0]);
+                        break;
+                    case 2:
+                        tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, zoomedHandles[0], zoomedHandles[1]);
+                        break;
+                    case 3:
+                        tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
+                        break;
+                    case 4:
+                        tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
+                        break;
+                    case 5:
+                        tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
+                        break;
+                    case 6:
+                        tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
+                        break;
+                    case 7:
+                        tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
+                        break;
+                    case 8:
+                        tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
+                        break;
+                    case 9:
+                        tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
+                        break;
+                    default:
+                        throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
+                }
             }
             const exportFormat = this.exportFormat.value;
             const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
@@ -560,9 +629,12 @@ export class UIController {
         const tileWidth = maxWidth;
         const tileHeight = maxHeight;
 
-        // Update the readonly input fields
-        this.tileWidth.value = `${tileWidth}px`;
-        this.tileHeight.value = `${tileHeight}px`;
+        // Update the input fields (only if not manually set by user)
+        if (!this.customTileDimensions) {
+            this.tileWidth.value = tileWidth;
+            this.tileHeight.value = tileHeight;
+            this.customTileDimensions = { width: tileWidth, height: tileHeight };
+        }
 
         console.log(`Tile dimensions: ${tileWidth} × ${tileHeight} pixels (based on largest image for ${rows}×${cols} grid)`);
     }
@@ -571,7 +643,74 @@ export class UIController {
         if (this.tileWidth && this.tileHeight) {
             this.tileWidth.value = '';
             this.tileHeight.value = '';
+            this.customTileDimensions = null;
         }
+    }
+
+    toggleAspectRatioLock() {
+        this.aspectRatioLocked = !this.aspectRatioLocked;
+        
+        if (this.aspectLock) {
+            if (this.aspectRatioLocked) {
+                this.aspectLock.classList.add('locked');
+                this.aspectLock.textContent = '🔗 Locked';
+                this.aspectLock.title = 'Unlock aspect ratio';
+            } else {
+                this.aspectLock.classList.remove('locked');
+                this.aspectLock.textContent = '🔓 Unlocked';
+                this.aspectLock.title = 'Lock aspect ratio';
+            }
+        }
+        
+        console.log(`Aspect ratio lock: ${this.aspectRatioLocked ? 'locked' : 'unlocked'}`);
+    }
+
+    onTileWidthChange() {
+        const widthValue = parseInt(this.tileWidth.value);
+        if (isNaN(widthValue) || widthValue < 1 || widthValue > 10000) {
+            return;
+        }
+
+        if (this.aspectRatioLocked && this.customTileDimensions) {
+            // Calculate height to maintain aspect ratio
+            const aspectRatio = this.customTileDimensions.width / this.customTileDimensions.height;
+            const newHeight = Math.round(widthValue / aspectRatio);
+            this.tileHeight.value = newHeight;
+            this.customTileDimensions = { width: widthValue, height: newHeight };
+        } else {
+            // Update only width
+            this.customTileDimensions = {
+                width: widthValue,
+                height: this.customTileDimensions?.height || parseInt(this.tileHeight.value) || widthValue
+            };
+        }
+
+        console.log(`Custom tile width changed to: ${widthValue}px`);
+        this.performGridTiling();
+    }
+
+    onTileHeightChange() {
+        const heightValue = parseInt(this.tileHeight.value);
+        if (isNaN(heightValue) || heightValue < 1 || heightValue > 10000) {
+            return;
+        }
+
+        if (this.aspectRatioLocked && this.customTileDimensions) {
+            // Calculate width to maintain aspect ratio
+            const aspectRatio = this.customTileDimensions.width / this.customTileDimensions.height;
+            const newWidth = Math.round(heightValue * aspectRatio);
+            this.tileWidth.value = newWidth;
+            this.customTileDimensions = { width: newWidth, height: heightValue };
+        } else {
+            // Update only height
+            this.customTileDimensions = {
+                width: this.customTileDimensions?.width || parseInt(this.tileWidth.value) || heightValue,
+                height: heightValue
+            };
+        }
+
+        console.log(`Custom tile height changed to: ${heightValue}px`);
+        this.performGridTiling();
     }
 
     updateExportSizeOptions() {
