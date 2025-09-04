@@ -115,6 +115,9 @@ export class UIController {
             this.updateImageListSelection(selectedIndex);
         };
 
+        // Timeout handle for high-quality re-render after drag
+        this.highQualityRenderTimeout = null;
+
         // Set up callback for canvas image dragging
         this.canvasManager.onImageDrag = (imageIndex, deltaX, deltaY) => {
             if (imageIndex >= 0) {
@@ -124,7 +127,26 @@ export class UIController {
                 
                 this.imageLoader.setImageOffset(imageIndex, newOffsetX, newOffsetY);
                 this.updateOffsetInputs(imageIndex);
-                this.performGridTiling(); // Real-time update during drag
+                
+                // Cancel any pending high-quality render
+                if (this.highQualityRenderTimeout) {
+                    clearTimeout(this.highQualityRenderTimeout);
+                    this.highQualityRenderTimeout = null;
+                }
+                
+                // Use proxy images for real-time performance during drag
+                this.performGridTiling(true); // useProxy = true for smooth dragging
+            }
+        };
+
+        // Set up callback for canvas drag start
+        this.canvasManager.onImageDragStart = (imageIndex) => {
+            if (imageIndex >= 0) {
+                // Cancel any pending high-quality render when new drag starts
+                if (this.highQualityRenderTimeout) {
+                    clearTimeout(this.highQualityRenderTimeout);
+                    this.highQualityRenderTimeout = null;
+                }
             }
         };
 
@@ -133,6 +155,9 @@ export class UIController {
             if (imageIndex >= 0) {
                 console.log(`Image ${imageIndex} drag ended. Total delta: (${totalDeltaX}, ${totalDeltaY})`);
                 this.updateStatus(`Image panned by (${Math.round(totalDeltaX)}, ${Math.round(totalDeltaY)})`);
+                
+                // Schedule high-quality re-render after drag ends (300ms debounce)
+                this.scheduleHighQualityRender();
             }
         };
     }
@@ -770,6 +795,24 @@ export class UIController {
         this.offsetXInput.value = 0;
         this.offsetYInput.value = 0;
         this.applyOffset();
+    }
+
+    /**
+     * Schedule a high-quality re-render after drag operations
+     * Uses 300ms debounce to prevent excessive renders
+     */
+    scheduleHighQualityRender() {
+        // Clear any existing timeout
+        if (this.highQualityRenderTimeout) {
+            clearTimeout(this.highQualityRenderTimeout);
+        }
+        
+        // Schedule new high-quality render
+        this.highQualityRenderTimeout = setTimeout(() => {
+            console.log('Rendering high-quality preview after drag...');
+            this.performGridTiling(false); // useProxy = false for full quality
+            this.highQualityRenderTimeout = null;
+        }, 300); // 300ms debounce
     }
 
     toggleGrid() {

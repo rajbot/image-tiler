@@ -8,6 +8,7 @@
 
 import { ImageLoader } from '../www/image-loader.js';
 import { CanvasManager } from '../www/canvas-manager.js';
+import { UIController } from '../www/ui-controller.js';
 
 // Enhanced Mock WASM module with parameter validation
 const createValidatingMockFunction = (expectedParamCount, functionName) => {
@@ -1114,6 +1115,31 @@ describe('Component Integration Tests', () => {
         // Verify callbacks were called with correct parameters
         expect(canvasManager.onImageDrag).toHaveBeenCalledWith(0, 10, 5);
         expect(canvasManager.onImageDragEnd).toHaveBeenCalledWith(0, 20, 15);
+      });
+
+      test('should schedule debounced high-quality render after drag end', (done) => {
+        const mockImages = [{ name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }];
+        const mockHandles = mockImages.map(createMockHandle);
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = mockHandles;
+        
+        const uiController = new UIController(imageLoader, canvasManager, mockWasmModule);
+        
+        // Spy on performGridTiling to track calls
+        const performGridTilingSpy = jest.spyOn(uiController, 'performGridTiling');
+        
+        // Clear initial calls
+        performGridTilingSpy.mockClear();
+        
+        // Simulate drag end
+        canvasManager.onImageDragEnd(0, 10, -5);
+        
+        // High-quality render should be scheduled for 300ms later
+        setTimeout(() => {
+          expect(performGridTilingSpy).toHaveBeenCalledWith(false); // High-quality call
+          done();
+        }, 350); // Wait slightly longer than the 300ms debounce
       });
     });
 

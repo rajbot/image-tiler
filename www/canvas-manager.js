@@ -82,6 +82,12 @@ export class CanvasManager {
                     this.lastDragX = x;
                     this.lastDragY = y;
                     this.canvas.style.cursor = 'grabbing';
+                    
+                    // Notify drag start
+                    if (this.onImageDragStart) {
+                        this.onImageDragStart(this.selectedImageIndex);
+                    }
+                    
                     event.preventDefault();
                 }
             }
