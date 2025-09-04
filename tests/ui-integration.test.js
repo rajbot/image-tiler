@@ -166,7 +166,6 @@ describe('Component Integration Tests', () => {
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
-        <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
         <div id="image-details"></div>
@@ -306,7 +305,6 @@ describe('Component Integration Tests', () => {
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
-        <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
         <div id="image-details"></div>
@@ -483,7 +481,6 @@ describe('Component Integration Tests', () => {
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
-        <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
         <div id="image-details"></div>
@@ -568,7 +565,6 @@ describe('Component Integration Tests', () => {
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
-        <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
         <div id="image-details"></div>
@@ -697,7 +693,6 @@ describe('Component Integration Tests', () => {
         <button id="export-btn"></button>
         <select id="export-format"><option value="png">PNG</option></select>
         <select id="export-size"><option value="original">Original</option></select>
-        <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
         <div id="image-details"></div>

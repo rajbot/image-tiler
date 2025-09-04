@@ -23,7 +23,6 @@ export class UIController {
         this.exportButton = document.getElementById('export-btn');
         this.exportFormat = document.getElementById('export-format');
         this.exportSize = document.getElementById('export-size');
-        this.clearButton = document.getElementById('clear-btn');
         this.status = document.getElementById('status');
         this.dragHint = document.getElementById('drag-hint');
         this.imageDetails = document.getElementById('image-details');
@@ -74,10 +73,6 @@ export class UIController {
             this.exportImage();
         });
 
-        // Clear button
-        this.clearButton.addEventListener('click', () => {
-            this.clearAll();
-        });
 
         // Zoom controls
         this.zoomInput.addEventListener('change', () => {
@@ -491,29 +486,6 @@ export class UIController {
         }
     }
 
-    clearAll() {
-        this.imageLoader.clear();
-        this.canvasManager.clear();
-        this.imageList.innerHTML = '';
-        // Restore empty state
-        this.imageList.innerHTML = `
-            <div class="empty-state">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z" />
-                </svg>
-                <p>No images loaded yet</p>
-            </div>
-        `;
-        this.currentTiledImage = null;
-        this.currentTiledHandle = null;
-        this.selectedImageIndex = -1;
-        this.exportButton.disabled = true;
-        this.dragHint.style.display = 'none';
-        this.imageDetails.style.display = 'none';
-        this.updateGridControls();
-        this.updateExportSizeOptions();
-        this.updateStatus('Cleared all images');
-    }
 
     toggleImageSelection(imageItem) {
         const imageItems = Array.from(this.imageList.children).filter(child => 

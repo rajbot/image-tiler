@@ -33,7 +33,6 @@ describe('UIController Image Selection', () => {
       'export-btn': { addEventListener: jest.fn(), disabled: true },
       'export-format': { value: 'png' },
       'export-size': { value: 'original', innerHTML: '' },
-      'clear-btn': { addEventListener: jest.fn() },
       'status': { textContent: '' },
       'drag-hint': { style: { display: 'none' } },
       'image-details': { style: { display: 'none' } },
