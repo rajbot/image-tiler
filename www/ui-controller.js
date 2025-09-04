@@ -121,14 +121,27 @@ export class UIController {
         // Set up callback for canvas image dragging
         this.canvasManager.onImageDrag = (imageIndex, deltaX, deltaY) => {
             if (imageIndex >= 0) {
+                console.log(`=== DRAG CALLBACK: image ${imageIndex}, raw delta (${deltaX}, ${deltaY}) ===`);
+                
                 // Scale drag deltas from canvas/display coordinate space to original image coordinate space
                 const scaledDelta = this.scaleCanvasDeltaToOriginalCoordinates(imageIndex, deltaX, deltaY);
                 
+                console.log(`Scaled delta: (${scaledDelta.x}, ${scaledDelta.y})`);
+                
                 const currentOffset = this.imageLoader.getImageOffset(imageIndex);
+                console.log(`Current offset from storage: (${currentOffset.x}, ${currentOffset.y})`);
+                
                 const newOffsetX = currentOffset.x + scaledDelta.x;
                 const newOffsetY = currentOffset.y + scaledDelta.y;
                 
+                console.log(`Calculated new offset: (${newOffsetX}, ${newOffsetY})`);
+                
                 this.imageLoader.setImageOffset(imageIndex, newOffsetX, newOffsetY);
+                
+                // Verify what was actually stored
+                const verifyOffset = this.imageLoader.getImageOffset(imageIndex);
+                console.log(`Verified stored offset: (${verifyOffset.x}, ${verifyOffset.y})`);
+                console.log(`Expected offset for full left pan: -${this.imageLoader.getImageDimensions(imageIndex).width}px`);
                 this.updateOffsetInputs(imageIndex);
                 
                 // Cancel any pending high-quality render
@@ -418,12 +431,32 @@ export class UIController {
                 const proxyUsed = useProxy && this.imageLoader.hasProxy(index);
                 const handleType = proxyUsed ? 'proxy' : 'original';
                 
-                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${offsetX}, ${offsetY}) to ${handleType} handle`);
+                // Scale offsets from original image coordinates to handle coordinates
+                let scaledOffsetX = offsetX;
+                let scaledOffsetY = offsetY;
                 
-                if (zoom === 100 && offsetX === 0 && offsetY === 0) {
+                if (proxyUsed) {
+                    // Convert offsets from original image coordinate space to proxy coordinate space
+                    const originalDims = this.imageLoader.getImageDimensions(index);
+                    const proxyHandle = this.imageLoader.getImageHandle(index, true);
+                    
+                    if (proxyHandle && originalDims) {
+                        const scaleX = proxyHandle.width / originalDims.width;
+                        const scaleY = proxyHandle.height / originalDims.height;
+                        
+                        scaledOffsetX = offsetX * scaleX;
+                        scaledOffsetY = offsetY * scaleY;
+                        
+                        console.log(`Image ${index}: scaling offset (${offsetX}, ${offsetY}) → (${scaledOffsetX}, ${scaledOffsetY}) for ${handleType} handle`);
+                    }
+                }
+                
+                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${scaledOffsetX}, ${scaledOffsetY}) to ${handleType} handle`);
+                
+                if (zoom === 100 && scaledOffsetX === 0 && scaledOffsetY === 0) {
                     return baseHandle;
                 } else {
-                    return this.wasmModule.zoom_and_pan_image(baseHandle, zoom, offsetX, offsetY);
+                    return this.wasmModule.zoom_and_pan_image(baseHandle, zoom, scaledOffsetX, scaledOffsetY);
                 }
             });
             
@@ -794,33 +827,99 @@ export class UIController {
      * This is needed because drag coordinates are in canvas/proxy space but offsets are stored in original space
      */
     scaleCanvasDeltaToOriginalCoordinates(imageIndex, deltaX, deltaY) {
-        // Check if this image is currently being displayed with a proxy
-        const useProxy = true; // During drag operations, we're using proxy images
-        const isUsingProxy = useProxy && this.imageLoader.hasProxy(imageIndex);
-        
-        if (!isUsingProxy) {
-            // No scaling needed if not using proxy
+        // Get the current tiled image and canvas information to determine scaling
+        if (!this.currentTiledHandle) {
+            console.log(`No tiled handle available, no scaling needed`);
             return { x: deltaX, y: deltaY };
         }
         
-        // Get original and proxy dimensions to calculate scaling factor
-        const originalDimensions = this.imageLoader.getImageDimensions(imageIndex); // Always returns original
-        const proxyHandle = this.imageLoader.getImageHandle(imageIndex, true); // Get proxy handle
+        // Get original image dimensions
+        const originalDimensions = this.imageLoader.getImageDimensions(imageIndex);
         
-        if (!proxyHandle) {
-            // No proxy available, no scaling needed
+        // Get the canvas scaling factor (how the tiled image is scaled to fit in canvas)
+        const canvasElement = this.canvasManager.canvas;
+        const currentImage = this.canvasManager.currentImage;
+        
+        if (!currentImage || !currentImage.image) {
+            console.log(`No current canvas image, using simple proxy scaling`);
+            // Fallback to simple proxy scaling
+            const useProxy = true;
+            const isUsingProxy = useProxy && this.imageLoader.hasProxy(imageIndex);
+            if (isUsingProxy) {
+                const proxyHandle = this.imageLoader.getImageHandle(imageIndex, true);
+                if (proxyHandle) {
+                    const scaleX = originalDimensions.width / proxyHandle.width;
+                    const scaleY = originalDimensions.height / proxyHandle.height;
+                    return { x: deltaX * scaleX, y: deltaY * scaleY };
+                }
+            }
             return { x: deltaX, y: deltaY };
         }
         
-        // Calculate scaling factors
-        const scaleX = originalDimensions.width / proxyHandle.width;
-        const scaleY = originalDimensions.height / proxyHandle.height;
+        // Calculate the full coordinate transformation chain:
+        // Canvas coords → Displayed tiled image coords → Individual image coords → Original image coords
         
-        // Scale the deltas to original coordinate space
-        return {
-            x: deltaX * scaleX,
-            y: deltaY * scaleY
+        console.log(`Scaling delta (${deltaX}, ${deltaY}) for image ${imageIndex}`);
+        console.log(`Canvas size: ${canvasElement.width}x${canvasElement.height}`);
+        console.log(`Tiled image size: ${this.currentTiledHandle.width}x${this.currentTiledHandle.height}`);
+        console.log(`Canvas image display size: ${currentImage.width}x${currentImage.height}`);
+        console.log(`Original image size: ${originalDimensions.width}x${originalDimensions.height}`);
+        
+        // Step 1: Canvas coords → Displayed tiled image coords
+        // The tiled image is scaled to fit in canvas
+        const canvasToDisplayedScale = this.currentTiledHandle.width / currentImage.width;
+        console.log(`Canvas to displayed scale: ${canvasToDisplayedScale}`);
+        
+        // Step 2: Get the grid layout to find individual image size within tiled image
+        const gridInfo = this.canvasManager.getCurrentImageData()?.gridInfo;
+        if (!gridInfo) {
+            console.log(`No grid info available, treating as single image`);
+            // Single image case - the displayed image IS the individual image
+            const displayedToOriginalScaleX = originalDimensions.width / this.currentTiledHandle.width;
+            const displayedToOriginalScaleY = originalDimensions.height / this.currentTiledHandle.height;
+            
+            const totalScaleX = canvasToDisplayedScale * displayedToOriginalScaleX;
+            const totalScaleY = canvasToDisplayedScale * displayedToOriginalScaleY;
+            
+            console.log(`Total scale factors: scaleX=${totalScaleX}, scaleY=${totalScaleY}`);
+            
+            return {
+                x: deltaX * totalScaleX,
+                y: deltaY * totalScaleY
+            };
+        }
+        
+        // Step 3: Grid case - account for individual cell size
+        const cellWidth = this.currentTiledHandle.width / gridInfo.cols;
+        const cellHeight = this.currentTiledHandle.height / gridInfo.rows;
+        
+        console.log(`Grid: ${gridInfo.rows}x${gridInfo.cols}, Cell size: ${cellWidth}x${cellHeight}`);
+        
+        // Step 4: Scale from canvas to original image coordinates
+        // The issue was calculating cell scaling incorrectly for grids
+        
+        // Canvas pixel → Tiled image pixel
+        const canvasToTiledScaleX = this.currentTiledHandle.width / currentImage.width;
+        const canvasToTiledScaleY = this.currentTiledHandle.height / currentImage.height;
+        
+        // Tiled image pixel → Original image pixel (direct scaling)
+        const tiledToOriginalScaleX = originalDimensions.width / this.currentTiledHandle.width;
+        const tiledToOriginalScaleY = originalDimensions.height / this.currentTiledHandle.height;
+        
+        const totalScaleX = canvasToTiledScaleX * tiledToOriginalScaleX;
+        const totalScaleY = canvasToTiledScaleY * tiledToOriginalScaleY;
+        
+        console.log(`Canvas to tiled scale: ${canvasToTiledScaleX}, ${canvasToTiledScaleY}`);
+        console.log(`Tiled to original scale: ${tiledToOriginalScaleX}, ${tiledToOriginalScaleY}`);
+        console.log(`Total scale factors: scaleX=${totalScaleX}, scaleY=${totalScaleY}`);
+        
+        const scaledDelta = {
+            x: deltaX * totalScaleX,
+            y: deltaY * totalScaleY
         };
+        
+        console.log(`Scaled delta: (${scaledDelta.x}, ${scaledDelta.y})`);
+        return scaledDelta;
     }
 
     /**
