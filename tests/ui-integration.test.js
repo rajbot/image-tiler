@@ -1088,8 +1088,8 @@ describe('Component Integration Tests', () => {
         uiController.selectedImageIndex = 0;
         
         // Try to set offset values outside valid range
-        document.getElementById('offset-x-input').value = '1500'; // Above max
-        document.getElementById('offset-y-input').value = '-1200'; // Below min
+        document.getElementById('offset-x-input').value = '15000'; // Above max of 10000
+        document.getElementById('offset-y-input').value = '-12000'; // Below min of -10000
         
         // Apply the offset (should be rejected)
         uiController.applyOffset();
