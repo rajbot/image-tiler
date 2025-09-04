@@ -18,7 +18,8 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: './pkg/image_tiler_bg.wasm', to: 'image_tiler_bg.wasm' }
+        { from: './pkg/image_tiler_bg.wasm', to: 'image_tiler_bg.wasm' },
+        { from: './www/favicon.svg', to: 'favicon.svg' }
       ]
     })
   ],
