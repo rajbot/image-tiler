@@ -41,7 +41,8 @@ describe('CanvasManager', () => {
         bottom: 600,
         right: 800
       })),
-      addEventListener: jest.fn()
+      addEventListener: jest.fn(),
+      style: { cursor: 'default' }
     };
 
     // Mock getElementById to return our mock canvas

@@ -41,7 +41,9 @@ export class ImageLoader {
             this.imageHandles.push({
                 handle: handle,
                 metadata: imageData,
-                zoom: 100  // Default zoom level
+                zoom: 100,  // Default zoom level
+                offsetX: 0, // Default X offset
+                offsetY: 0  // Default Y offset
             });
             return handle;
         } catch (error) {
@@ -109,5 +111,24 @@ export class ImageLoader {
             return this.imageHandles[index].zoom;
         }
         return 100; // Default zoom
+    }
+
+    setImageOffset(index, offsetX, offsetY) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            this.imageHandles[index].offsetX = offsetX;
+            this.imageHandles[index].offsetY = offsetY;
+            return true;
+        }
+        return false;
+    }
+
+    getImageOffset(index) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            return {
+                x: this.imageHandles[index].offsetX,
+                y: this.imageHandles[index].offsetY
+            };
+        }
+        return { x: 0, y: 0 }; // Default offset
     }
 }

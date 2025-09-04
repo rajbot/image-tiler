@@ -6,8 +6,14 @@ export class CanvasManager {
         this.selectedImageIndex = -1;
         this.imagePositions = [];
         this.marchingAntsOffset = 0;
+        this.isDragging = false;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.lastDragX = 0;
+        this.lastDragY = 0;
         this.initializeCanvas();
         this.setupClickHandling();
+        this.setupDragHandling();
         this.startMarchingAntsAnimation();
     }
 
@@ -47,11 +53,110 @@ export class CanvasManager {
 
     setupClickHandling() {
         this.canvas.addEventListener('click', (event) => {
+            if (this.isDragging) return; // Ignore clicks during drag
+            
             const rect = this.canvas.getBoundingClientRect();
             const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
             const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
             
             this.handleCanvasClick(x, y);
+        });
+    }
+
+    setupDragHandling() {
+        this.canvas.addEventListener('mousedown', (event) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+            const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            // Check if we're clicking on a selected image
+            if (this.selectedImageIndex >= 0 && this.imagePositions[this.selectedImageIndex]) {
+                const pos = this.imagePositions[this.selectedImageIndex];
+                if (x >= pos.x && x <= pos.x + pos.width && 
+                    y >= pos.y && y <= pos.y + pos.height) {
+                    
+                    this.isDragging = true;
+                    this.dragStartX = x;
+                    this.dragStartY = y;
+                    this.lastDragX = x;
+                    this.lastDragY = y;
+                    this.canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
+                }
+            }
+        });
+
+        this.canvas.addEventListener('mousemove', (event) => {
+            if (!this.isDragging) {
+                // Change cursor when hovering over selected image
+                if (this.selectedImageIndex >= 0 && this.imagePositions[this.selectedImageIndex]) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+                    const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+                    
+                    const pos = this.imagePositions[this.selectedImageIndex];
+                    if (x >= pos.x && x <= pos.x + pos.width && 
+                        y >= pos.y && y <= pos.y + pos.height) {
+                        this.canvas.style.cursor = 'grab';
+                    } else {
+                        this.canvas.style.cursor = 'default';
+                    }
+                }
+                return;
+            }
+
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+            const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            const deltaX = x - this.lastDragX;
+            const deltaY = y - this.lastDragY;
+            
+            this.lastDragX = x;
+            this.lastDragY = y;
+            
+            // Notify drag handler with delta
+            if (this.onImageDrag) {
+                this.onImageDrag(this.selectedImageIndex, deltaX, deltaY);
+            }
+            
+            event.preventDefault();
+        });
+
+        this.canvas.addEventListener('mouseup', (event) => {
+            if (this.isDragging) {
+                this.canvas.style.cursor = 'default';
+                
+                // Calculate total drag distance
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+                const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+                
+                const totalDeltaX = x - this.dragStartX;
+                const totalDeltaY = y - this.dragStartY;
+                
+                // Notify drag end handler
+                if (this.onImageDragEnd) {
+                    this.onImageDragEnd(this.selectedImageIndex, totalDeltaX, totalDeltaY);
+                }
+                
+                // Reset isDragging after a short delay to prevent click events from firing
+                setTimeout(() => {
+                    this.isDragging = false;
+                }, 10);
+                
+                event.preventDefault();
+            }
+        });
+
+        // Handle mouse leave to cancel drag
+        this.canvas.addEventListener('mouseleave', (event) => {
+            if (this.isDragging) {
+                this.canvas.style.cursor = 'default';
+                setTimeout(() => {
+                    this.isDragging = false;
+                }, 10);
+            }
         });
     }
 
@@ -282,6 +387,8 @@ export class CanvasManager {
         this.currentImage = null;
         this.selectedImageIndex = -1;
         this.imagePositions = [];
+        this.isDragging = false;
+        this.canvas.style.cursor = 'default';
         
         // Notify UI controller of selection reset
         if (this.onImageSelected) {

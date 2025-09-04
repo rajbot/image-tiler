@@ -51,7 +51,8 @@ const mockWasmModule = {
   tile_images_grid_9: createValidatingMockFunction(11, 'tile_images_grid_9'), // rows, cols, img1-img9
   resize_image: jest.fn((handle, width, height) => ({ width, height })),
   export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4])),
-  zoom_image: jest.fn((handle, zoomPercentage) => ({ width: handle.width, height: handle.height }))
+  zoom_image: jest.fn((handle, zoomPercentage) => ({ width: handle.width, height: handle.height })),
+  zoom_and_pan_image: jest.fn((handle, zoomPercentage, offsetX, offsetY) => ({ width: handle.width, height: handle.height }))
 };
 
 describe('Component Integration Tests', () => {
@@ -173,6 +174,9 @@ describe('Component Integration Tests', () => {
         <span id="detail-dimensions"></span>
         <input type="number" id="zoom-input" value="100">
         <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
       `;
 
       // Import UIController dynamically to avoid module loading issues
@@ -312,6 +316,9 @@ describe('Component Integration Tests', () => {
         <span id="detail-dimensions"></span>
         <input type="number" id="zoom-input" value="100">
         <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -488,6 +495,9 @@ describe('Component Integration Tests', () => {
         <span id="detail-dimensions"></span>
         <input type="number" id="zoom-input" value="100">
         <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -572,6 +582,9 @@ describe('Component Integration Tests', () => {
         <span id="detail-dimensions"></span>
         <input type="number" id="zoom-input" value="100">
         <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -700,6 +713,9 @@ describe('Component Integration Tests', () => {
         <span id="detail-dimensions"></span>
         <input type="number" id="zoom-input" value="100">
         <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -801,6 +817,331 @@ describe('Component Integration Tests', () => {
           }
         });
       }
+    });
+  });
+
+  describe('Image Panning/Offset Feature Tests', () => {
+    let uiController;
+
+    beforeEach(() => {
+      document.body.innerHTML = `
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <input type="file" id="file-input" multiple accept="image/*">
+        <div id="drop-zone"></div>
+        <div id="image-list"></div>
+        <input type="number" id="grid-rows" value="1">
+        <input type="number" id="grid-cols" value="2">
+        <button id="apply-grid"></button>
+        <button id="export-btn"></button>
+        <select id="export-format"><option value="png">PNG</option></select>
+        <select id="export-size"><option value="original">Original</option></select>
+        <div id="status"></div>
+        <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
+        <input type="number" id="offset-x-input" value="0">
+        <input type="number" id="offset-y-input" value="0">
+        <button id="offset-reset"></button>
+      `;
+
+      const { UIController } = require('../www/ui-controller.js');
+      uiController = new UIController(imageLoader, canvasManager, mockWasmModule);
+      jest.clearAllMocks();
+    });
+
+    describe('ImageLoader Offset Storage', () => {
+      test('should store and retrieve offset values for images', () => {
+        // Create mock image data
+        const mockImageData = {
+          name: 'test.jpg',
+          size: 1000,
+          data: new Uint8Array([1, 2, 3, 4]),
+          url: 'mock-url',
+          file: new File(['test data'], 'test.jpg')
+        };
+
+        // Load image into ImageLoader
+        imageLoader.loadedImages.push(mockImageData);
+        imageLoader.imageHandles.push({
+          handle: 'handle1',
+          metadata: mockImageData,
+          zoom: 100,
+          offsetX: 0,
+          offsetY: 0
+        });
+
+        // Test default offset values
+        const defaultOffset = imageLoader.getImageOffset(0);
+        expect(defaultOffset).toEqual({ x: 0, y: 0 });
+
+        // Test setting offset values
+        const success = imageLoader.setImageOffset(0, 50, -25);
+        expect(success).toBe(true);
+
+        // Test retrieving updated offset values
+        const updatedOffset = imageLoader.getImageOffset(0);
+        expect(updatedOffset).toEqual({ x: 50, y: -25 });
+
+        // Test invalid index handling
+        const invalidOffset = imageLoader.getImageOffset(5);
+        expect(invalidOffset).toEqual({ x: 0, y: 0 });
+
+        const failedSet = imageLoader.setImageOffset(5, 10, 20);
+        expect(failedSet).toBe(false);
+      });
+    });
+
+    describe('UI Controller Offset Integration', () => {
+      test('should apply offset values and call zoom_and_pan_image', async () => {
+        // Setup mock images with offset values
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) },
+          { name: 'image2.jpg', size: 1200, data: new Uint8Array([4, 5, 6]) }
+        ];
+        
+        const mockHandles = [
+          { handle: 'handle1', metadata: mockImages[0], zoom: 150, offsetX: 25, offsetY: -10 },
+          { handle: 'handle2', metadata: mockImages[1], zoom: 100, offsetX: 0, offsetY: 0 }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = mockHandles;
+        
+        await uiController.performGridTiling();
+        
+        // Verify zoom_and_pan_image was called with correct parameters
+        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle1', 150, 25, -10);
+        // Handle 2 has all default values so zoom_and_pan_image should NOT be called for it
+        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledTimes(1);
+        
+        // Verify the grid function was called with the transformed handles
+        expect(mockWasmModule.tile_images_grid_2).toHaveBeenCalled();
+      });
+
+      test('should skip zoom_and_pan_image for default values', async () => {
+        // Setup mock images with all default values
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
+        ];
+        
+        const mockHandles = [
+          { handle: 'handle1', metadata: mockImages[0], zoom: 100, offsetX: 0, offsetY: 0 }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = mockHandles;
+        
+        await uiController.performGridTiling();
+        
+        // Verify zoom_and_pan_image was NOT called for default values
+        expect(mockWasmModule.zoom_and_pan_image).not.toHaveBeenCalled();
+        
+        // Verify the grid function was called with the original handle
+        expect(mockWasmModule.tile_images_grid_1).toHaveBeenCalledWith(1, 2, 'handle1');
+      });
+
+      test('should update offset inputs when image is selected', () => {
+        // Setup mock images with offset values
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = [{
+          handle: 'handle1',
+          metadata: mockImages[0],
+          zoom: 100,
+          offsetX: 30,
+          offsetY: -15
+        }];
+        
+        // Simulate selecting the image
+        uiController.selectedImageIndex = 0;
+        uiController.updateImageDetails(0);
+        
+        // Verify offset inputs show the correct values
+        expect(document.getElementById('offset-x-input').value).toBe('30');
+        expect(document.getElementById('offset-y-input').value).toBe('-15');
+      });
+
+      test('should apply offset from UI inputs', () => {
+        // Setup mock images
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = [{
+          handle: 'handle1',
+          metadata: mockImages[0],
+          zoom: 100,
+          offsetX: 0,
+          offsetY: 0
+        }];
+        
+        // Select the image
+        uiController.selectedImageIndex = 0;
+        
+        // Set offset values in the UI
+        document.getElementById('offset-x-input').value = '75';
+        document.getElementById('offset-y-input').value = '-40';
+        
+        // Apply the offset
+        uiController.applyOffset();
+        
+        // Verify the offset was applied to the image
+        const appliedOffset = imageLoader.getImageOffset(0);
+        expect(appliedOffset).toEqual({ x: 75, y: -40 });
+        
+        // Verify performGridTiling was called (to update the preview)
+        expect(mockWasmModule.tile_images_grid_1).toHaveBeenCalled();
+      });
+
+      test('should reset offset values', () => {
+        // Setup mock images with offset values
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = [{
+          handle: 'handle1',
+          metadata: mockImages[0],
+          zoom: 100,
+          offsetX: 50,
+          offsetY: -25
+        }];
+        
+        // Select the image
+        uiController.selectedImageIndex = 0;
+        
+        // Reset offset
+        uiController.resetOffset();
+        
+        // Verify offset was reset to zero
+        const resetOffset = imageLoader.getImageOffset(0);
+        expect(resetOffset).toEqual({ x: 0, y: 0 });
+        
+        // Verify UI inputs were reset
+        expect(document.getElementById('offset-x-input').value).toBe('0');
+        expect(document.getElementById('offset-y-input').value).toBe('0');
+      });
+
+      test('should validate offset input ranges', () => {
+        // Setup mock images
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = [{
+          handle: 'handle1',
+          metadata: mockImages[0],
+          zoom: 100,
+          offsetX: 0,
+          offsetY: 0
+        }];
+        
+        // Select the image
+        uiController.selectedImageIndex = 0;
+        
+        // Try to set offset values outside valid range
+        document.getElementById('offset-x-input').value = '1500'; // Above max
+        document.getElementById('offset-y-input').value = '-1200'; // Below min
+        
+        // Apply the offset (should be rejected)
+        uiController.applyOffset();
+        
+        // Verify offset was not applied (should remain at defaults)
+        const offset = imageLoader.getImageOffset(0);
+        expect(offset).toEqual({ x: 0, y: 0 });
+        
+        // Verify UI inputs were reset to valid values
+        expect(document.getElementById('offset-x-input').value).toBe('0');
+        expect(document.getElementById('offset-y-input').value).toBe('0');
+      });
+    });
+
+    describe('Canvas Drag Interaction', () => {
+      test('should setup drag event handlers', () => {
+        // Test that drag properties exist
+        expect(canvasManager.isDragging).toBeDefined();
+        expect(canvasManager.dragStartX).toBeDefined();
+        expect(canvasManager.dragStartY).toBeDefined();
+        expect(canvasManager.lastDragX).toBeDefined();
+        expect(canvasManager.lastDragY).toBeDefined();
+        
+        // Test that callbacks are set up by UIController
+        expect(typeof canvasManager.onImageDrag).toBe('function');
+        expect(typeof canvasManager.onImageDragEnd).toBe('function');
+        
+        // Simulate setting up callbacks
+        canvasManager.onImageDrag = jest.fn();
+        canvasManager.onImageDragEnd = jest.fn();
+        
+        expect(canvasManager.onImageDrag).toBeDefined();
+        expect(canvasManager.onImageDragEnd).toBeDefined();
+      });
+
+      test('should handle drag callbacks', () => {
+        // Setup drag callbacks
+        canvasManager.onImageDrag = jest.fn();
+        canvasManager.onImageDragEnd = jest.fn();
+        
+        // Test that we can call the callbacks manually
+        canvasManager.onImageDrag(0, 10, 5);
+        canvasManager.onImageDragEnd(0, 20, 15);
+        
+        // Verify callbacks were called with correct parameters
+        expect(canvasManager.onImageDrag).toHaveBeenCalledWith(0, 10, 5);
+        expect(canvasManager.onImageDragEnd).toHaveBeenCalledWith(0, 20, 15);
+      });
+    });
+
+    describe('Integration with Grid Tiling', () => {
+      test('should preserve offset and zoom when exporting', async () => {
+        // Setup mock images with both zoom and offset
+        const mockImages = [
+          { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) },
+          { name: 'image2.jpg', size: 1200, data: new Uint8Array([4, 5, 6]) }
+        ];
+        
+        const mockHandles = [
+          { handle: 'handle1', metadata: mockImages[0], zoom: 125, offsetX: 15, offsetY: -5 },
+          { handle: 'handle2', metadata: mockImages[1], zoom: 200, offsetX: -30, offsetY: 20 }
+        ];
+        
+        imageLoader.loadedImages = mockImages;
+        imageLoader.imageHandles = mockHandles;
+        
+        // Create initial grid with zoom and pan
+        await uiController.performGridTiling();
+        
+        // Verify zoom_and_pan_image was called for both images
+        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle1', 125, 15, -5);
+        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle2', 200, -30, 20);
+        
+        // Mock canvas manager for export
+        const mockGridInfo = { rows: 1, cols: 2, imageCount: 2 };
+        canvasManager.getCurrentImageData = jest.fn(() => ({
+          gridInfo: mockGridInfo
+        }));
+        canvasManager.displayImageFromBytes = jest.fn();
+        canvasManager.downloadImage = jest.fn();
+        
+        // Export the image
+        await uiController.exportImage();
+        
+        // Verify grid info was preserved in export
+        expect(canvasManager.displayImageFromBytes).toHaveBeenCalledWith(
+          expect.any(Uint8Array),
+          'exported-result',
+          mockGridInfo
+        );
+      });
     });
   });
 });

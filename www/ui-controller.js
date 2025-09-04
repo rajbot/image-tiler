@@ -30,6 +30,9 @@ export class UIController {
         this.detailDimensions = document.getElementById('detail-dimensions');
         this.zoomInput = document.getElementById('zoom-input');
         this.zoomResetBtn = document.getElementById('zoom-reset');
+        this.offsetXInput = document.getElementById('offset-x-input');
+        this.offsetYInput = document.getElementById('offset-y-input');
+        this.offsetResetBtn = document.getElementById('offset-reset');
     }
 
     setupEventListeners() {
@@ -82,6 +85,19 @@ export class UIController {
         this.zoomResetBtn.addEventListener('click', () => {
             this.resetZoom();
         });
+
+        // Offset controls
+        this.offsetXInput.addEventListener('input', () => {
+            this.applyOffset();
+        });
+
+        this.offsetYInput.addEventListener('input', () => {
+            this.applyOffset();
+        });
+
+        this.offsetResetBtn.addEventListener('click', () => {
+            this.resetOffset();
+        });
     }
 
     setupCanvasSelection() {
@@ -89,6 +105,27 @@ export class UIController {
         this.canvasManager.onImageSelected = (selectedIndex) => {
             this.selectedImageIndex = selectedIndex;
             this.updateImageListSelection(selectedIndex);
+        };
+
+        // Set up callback for canvas image dragging
+        this.canvasManager.onImageDrag = (imageIndex, deltaX, deltaY) => {
+            if (imageIndex >= 0) {
+                const currentOffset = this.imageLoader.getImageOffset(imageIndex);
+                const newOffsetX = currentOffset.x + deltaX;
+                const newOffsetY = currentOffset.y + deltaY;
+                
+                this.imageLoader.setImageOffset(imageIndex, newOffsetX, newOffsetY);
+                this.updateOffsetInputs(imageIndex);
+                this.performGridTiling(); // Real-time update during drag
+            }
+        };
+
+        // Set up callback for canvas drag end
+        this.canvasManager.onImageDragEnd = (imageIndex, totalDeltaX, totalDeltaY) => {
+            if (imageIndex >= 0) {
+                console.log(`Image ${imageIndex} drag ended. Total delta: (${totalDeltaX}, ${totalDeltaY})`);
+                this.updateStatus(`Image panned by (${Math.round(totalDeltaX)}, ${Math.round(totalDeltaY)})`);
+            }
         };
     }
 
@@ -140,6 +177,11 @@ export class UIController {
             // Update zoom input to show the selected image's zoom level
             const currentZoom = this.imageLoader.getImageZoom(selectedIndex);
             this.zoomInput.value = currentZoom;
+            
+            // Update offset inputs to show the selected image's offset values
+            const currentOffset = this.imageLoader.getImageOffset(selectedIndex);
+            this.offsetXInput.value = Math.round(currentOffset.x);
+            this.offsetYInput.value = Math.round(currentOffset.y);
             
             this.imageDetails.style.display = 'block';
         } else {
@@ -339,15 +381,17 @@ export class UIController {
         try {
             console.log(`Performing grid tiling: ${imageHandleData.length} images in ${rows}x${cols} grid`);
             
-            // Apply individual zoom to each image before tiling
+            // Apply individual zoom and pan to each image before tiling
             const zoomedHandles = imageHandleData.map((item, index) => {
                 const zoom = item.zoom || 100;
-                console.log(`Image ${index}: applying ${zoom}% zoom`);
+                const offsetX = item.offsetX || 0;
+                const offsetY = item.offsetY || 0;
+                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${offsetX}, ${offsetY})`);
                 
-                if (zoom === 100) {
+                if (zoom === 100 && offsetX === 0 && offsetY === 0) {
                     return item.handle;
                 } else {
-                    return this.wasmModule.zoom_image(item.handle, zoom);
+                    return this.wasmModule.zoom_and_pan_image(item.handle, zoom, offsetX, offsetY);
                 }
             });
             
@@ -647,6 +691,61 @@ export class UIController {
         
         this.zoomInput.value = 100;
         this.applyZoom();
+    }
+
+    updateOffsetInputs(imageIndex) {
+        if (imageIndex === this.selectedImageIndex) {
+            const currentOffset = this.imageLoader.getImageOffset(imageIndex);
+            this.offsetXInput.value = Math.round(currentOffset.x);
+            this.offsetYInput.value = Math.round(currentOffset.y);
+        }
+    }
+
+    applyOffset() {
+        if (this.selectedImageIndex === -1) {
+            this.updateStatus('No image selected for offset');
+            return;
+        }
+
+        const offsetX = parseInt(this.offsetXInput.value) || 0;
+        const offsetY = parseInt(this.offsetYInput.value) || 0;
+        
+        if (offsetX < -1000 || offsetX > 1000 || offsetY < -1000 || offsetY > 1000) {
+            this.updateStatus('Offset values must be between -1000 and 1000');
+            const currentOffset = this.imageLoader.getImageOffset(this.selectedImageIndex);
+            this.offsetXInput.value = Math.round(currentOffset.x);
+            this.offsetYInput.value = Math.round(currentOffset.y);
+            return;
+        }
+
+        try {
+            console.log(`Applying offset (${offsetX}, ${offsetY}) to image ${this.selectedImageIndex}`);
+            
+            // Set the offset for the selected image
+            this.imageLoader.setImageOffset(this.selectedImageIndex, offsetX, offsetY);
+            
+            // Regenerate the tiled image with the new offset
+            this.performGridTiling();
+            
+            this.updateStatus(`Offset applied to selected image: (${offsetX}, ${offsetY})`);
+        } catch (error) {
+            console.error('Error applying offset:', error);
+            this.updateStatus(`Error applying offset: ${error.message}`);
+            const currentOffset = this.imageLoader.getImageOffset(this.selectedImageIndex);
+            this.offsetXInput.value = Math.round(currentOffset.x);
+            this.offsetYInput.value = Math.round(currentOffset.y);
+        }
+    }
+
+    resetOffset() {
+        if (this.selectedImageIndex === -1) {
+            this.updateStatus('No image selected for offset reset');
+            return;
+        }
+        
+        this.offsetXInput.value = 0;
+        this.offsetYInput.value = 0;
+        this.applyOffset();
     }
 
     updateStatus(message) {

@@ -392,6 +392,108 @@ pub fn zoom_image(handle: &ImageHandle, zoom_percentage: u32) -> Result<ImageHan
 }
 
 #[wasm_bindgen]
+pub fn zoom_and_pan_image(
+    handle: &ImageHandle, 
+    zoom_percentage: u32, 
+    offset_x: i32, 
+    offset_y: i32
+) -> Result<ImageHandle, JsValue> {
+    if zoom_percentage == 0 {
+        return Err(JsValue::from_str("Zoom percentage must be greater than 0"));
+    }
+    
+    let zoom_factor = zoom_percentage as f32 / 100.0;
+    let original_width = handle.image.width();
+    let original_height = handle.image.height();
+    
+    console_log!("Zooming and panning image {}x{} by {}% with offset ({}, {})", 
+                 original_width, original_height, zoom_percentage, offset_x, offset_y);
+    
+    if zoom_percentage == 100 && offset_x == 0 && offset_y == 0 {
+        // No transformation needed, return copy of original
+        return Ok(ImageHandle { image: handle.image.clone() });
+    }
+    
+    if zoom_percentage == 100 && (offset_x != 0 || offset_y != 0) {
+        // 100% zoom with offset: treat as zoom out case to apply offset
+        let _zoom_factor = 1.0;
+        let _new_width = original_width;
+        let _new_height = original_height;
+        
+        // Create transparent canvas at original size
+        let mut result = DynamicImage::new_rgba8(original_width, original_height);
+        
+        // Apply offset to positioning (center + offset)
+        let base_x_offset = 0; // Since we're not resizing, base is 0
+        let base_y_offset = 0;
+        
+        let x_offset = (base_x_offset as i32 + offset_x).max(-(original_width as i32)).min(original_width as i32);
+        let y_offset = (base_y_offset as i32 + offset_y).max(-(original_height as i32)).min(original_height as i32);
+        
+        image::imageops::overlay(&mut result, &handle.image, x_offset as i64, y_offset as i64);
+        return Ok(ImageHandle { image: result });
+    }
+    
+    if zoom_percentage > 100 {
+        // Zoom in: crop with offset and scale up
+        let crop_factor = 1.0 / zoom_factor;
+        let crop_width = (original_width as f32 * crop_factor) as u32;
+        let crop_height = (original_height as f32 * crop_factor) as u32;
+        
+        // Ensure minimum crop size
+        let crop_width = crop_width.max(1);
+        let crop_height = crop_height.max(1);
+        
+        // Apply offset to crop position 
+        // For zoom in: positive offset should move the view right/down, which means cropping from left/top
+        // So we subtract the offset from the crop position
+        let base_crop_x = (original_width.saturating_sub(crop_width)) / 2;
+        let base_crop_y = (original_height.saturating_sub(crop_height)) / 2;
+        
+        // Scale offset by crop factor (smaller crop means offset has more effect)
+        let scaled_offset_x = (offset_x as f32 * crop_factor) as i32;
+        let scaled_offset_y = (offset_y as f32 * crop_factor) as i32;
+        
+        // Invert the offset direction for cropping (positive offset = crop from left/top)
+        let crop_x = (base_crop_x as i32 - scaled_offset_x).max(0).min((original_width - crop_width) as i32) as u32;
+        let crop_y = (base_crop_y as i32 - scaled_offset_y).max(0).min((original_height - crop_height) as i32) as u32;
+        
+        console_log!("Zoom in with pan: cropping {}x{} at ({},{}) then scaling to {}x{}", 
+                     crop_width, crop_height, crop_x, crop_y, original_width, original_height);
+        
+        let cropped = handle.image.crop_imm(crop_x, crop_y, crop_width, crop_height);
+        let zoomed = cropped.resize(original_width, original_height, FilterType::Lanczos3);
+        Ok(ImageHandle { image: zoomed })
+    } else {
+        // Zoom out: resize smaller and position with offset
+        let new_width = (original_width as f32 * zoom_factor) as u32;
+        let new_height = (original_height as f32 * zoom_factor) as u32;
+        
+        // Ensure minimum size
+        let new_width = new_width.max(1);
+        let new_height = new_height.max(1);
+        
+        console_log!("Zoom out with pan: resizing to {}x{} then positioning with offset ({},{}) in {}x{}", 
+                     new_width, new_height, offset_x, offset_y, original_width, original_height);
+        
+        let resized = handle.image.resize(new_width, new_height, FilterType::Lanczos3);
+        
+        // Create transparent canvas at original size
+        let mut result = DynamicImage::new_rgba8(original_width, original_height);
+        
+        // Apply offset to positioning
+        let base_x_offset = (original_width.saturating_sub(new_width)) / 2;
+        let base_y_offset = (original_height.saturating_sub(new_height)) / 2;
+        
+        let x_offset = (base_x_offset as i32 + offset_x).max(0).min((original_width - new_width) as i32) as u32;
+        let y_offset = (base_y_offset as i32 + offset_y).max(0).min((original_height - new_height) as i32) as u32;
+        
+        image::imageops::overlay(&mut result, &resized, x_offset as i64, y_offset as i64);
+        Ok(ImageHandle { image: result })
+    }
+}
+
+#[wasm_bindgen]
 pub fn export_image(handle: &ImageHandle, format: &str) -> Result<Vec<u8>, JsValue> {
     let mut buffer = Vec::new();
     let mut cursor = Cursor::new(&mut buffer);

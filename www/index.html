@@ -418,6 +418,56 @@
             background: #5a6fd8;
         }
 
+        .offset-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .offset-input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            background: #ffffff;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .offset-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .offset-separator {
+            color: #9ca3af;
+            font-weight: bold;
+            margin: 0 2px;
+        }
+
+        .offset-unit {
+            color: #6b7280;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .offset-reset-btn {
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .offset-reset-btn:hover {
+            background: #5a6fd8;
+        }
+
         .status {
             margin-top: 15px;
             padding: 10px;
@@ -548,6 +598,18 @@
                                        min="10" max="500" value="100" step="10">
                                 <span class="zoom-percent">%</span>
                                 <button id="zoom-reset" class="zoom-reset-btn">Reset</button>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Pan X/Y:</span>
+                            <div class="offset-controls">
+                                <input type="number" id="offset-x-input" class="offset-input" 
+                                       min="-1000" max="1000" value="0" step="10" placeholder="X">
+                                <span class="offset-separator">,</span>
+                                <input type="number" id="offset-y-input" class="offset-input" 
+                                       min="-1000" max="1000" value="0" step="10" placeholder="Y">
+                                <span class="offset-unit">px</span>
+                                <button id="offset-reset" class="offset-reset-btn">Reset</button>
                             </div>
                         </div>
                     </div>
