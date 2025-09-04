@@ -19,6 +19,8 @@ export class UIController {
         this.imageList = document.getElementById('image-list');
         this.gridRows = document.getElementById('grid-rows');
         this.gridCols = document.getElementById('grid-cols');
+        this.tileHeight = document.getElementById('tile-height');
+        this.tileWidth = document.getElementById('tile-width');
         this.applyGridButton = document.getElementById('apply-grid');
         this.exportButton = document.getElementById('export-btn');
         this.exportFormat = document.getElementById('export-format');
@@ -404,6 +406,7 @@ export class UIController {
         console.log(`Available image handles: ${imageHandleData.length}`, imageHandleData.map(item => item.handle));
         
         if (imageHandleData.length === 0) {
+            this.clearTileDimensions();
             this.updateStatus('No images to tile');
             return;
         }
@@ -509,6 +512,9 @@ export class UIController {
             this.exportButton.disabled = false;
             this.updateExportSizeOptions();
             
+            // Update tile dimension displays
+            this.updateTileDimensions(rows, cols);
+            
             this.updateStatus(`Successfully created ${rows}×${cols} grid`);
         } catch (error) {
             console.error('Error tiling images:', error);
@@ -524,6 +530,48 @@ export class UIController {
             width: this.currentTiledHandle.width,
             height: this.currentTiledHandle.height
         };
+    }
+
+    updateTileDimensions(rows, cols) {
+        if (!this.tileHeight || !this.tileWidth) {
+            return;
+        }
+
+        const loadedImages = this.imageLoader.getLoadedImages();
+        if (loadedImages.length === 0) {
+            return;
+        }
+
+        // Find the largest original image dimensions among all images
+        // This determines the reference tile size since all images are scaled to fit the largest
+        let maxWidth = 0;
+        let maxHeight = 0;
+        
+        for (let i = 0; i < loadedImages.length; i++) {
+            const originalDims = this.imageLoader.getImageDimensions(i);
+            if (originalDims) {
+                maxWidth = Math.max(maxWidth, originalDims.width);
+                maxHeight = Math.max(maxHeight, originalDims.height);
+            }
+        }
+
+        // The tile size is based on the largest image's dimensions
+        // Each tile will be sized to contain this largest image
+        const tileWidth = maxWidth;
+        const tileHeight = maxHeight;
+
+        // Update the readonly input fields
+        this.tileWidth.value = `${tileWidth}px`;
+        this.tileHeight.value = `${tileHeight}px`;
+
+        console.log(`Tile dimensions: ${tileWidth} × ${tileHeight} pixels (based on largest image for ${rows}×${cols} grid)`);
+    }
+
+    clearTileDimensions() {
+        if (this.tileWidth && this.tileHeight) {
+            this.tileWidth.value = '';
+            this.tileHeight.value = '';
+        }
     }
 
     updateExportSizeOptions() {
