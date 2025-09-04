@@ -35,7 +35,10 @@ describe('UIController Image Selection', () => {
       'export-size': { value: 'original', innerHTML: '' },
       'clear-btn': { addEventListener: jest.fn() },
       'status': { textContent: '' },
-      'drag-hint': { style: { display: 'none' } }
+      'drag-hint': { style: { display: 'none' } },
+      'image-details': { style: { display: 'none' } },
+      'detail-name': { textContent: '' },
+      'detail-dimensions': { textContent: '' }
     };
 
     document.getElementById = jest.fn((id) => mockElements[id]);

@@ -26,6 +26,9 @@ export class UIController {
         this.clearButton = document.getElementById('clear-btn');
         this.status = document.getElementById('status');
         this.dragHint = document.getElementById('drag-hint');
+        this.imageDetails = document.getElementById('image-details');
+        this.detailName = document.getElementById('detail-name');
+        this.detailDimensions = document.getElementById('detail-dimensions');
     }
 
     setupEventListeners() {
@@ -93,6 +96,44 @@ export class UIController {
                 item.classList.remove('selected');
             }
         });
+        
+        // Update image details display
+        this.updateImageDetails(selectedIndex);
+    }
+
+    updateImageDetails(selectedIndex) {
+        if (selectedIndex === -1) {
+            // No image selected, hide details
+            this.imageDetails.style.display = 'none';
+            return;
+        }
+
+        const images = this.imageLoader.getLoadedImages();
+        if (selectedIndex >= 0 && selectedIndex < images.length) {
+            const selectedImage = images[selectedIndex];
+            
+            // Get dimensions from the current tiled image
+            let dimensions = 'Unknown';
+            if (this.currentTiledHandle) {
+                // Calculate the dimensions of the selected image within the grid
+                const gridInfo = this.canvasManager.getCurrentImageData()?.gridInfo;
+                if (gridInfo) {
+                    const cellWidth = Math.floor(this.currentTiledHandle.width / gridInfo.cols);
+                    const cellHeight = Math.floor(this.currentTiledHandle.height / gridInfo.rows);
+                    dimensions = `${cellWidth} × ${cellHeight}`;
+                } else {
+                    // Single image case
+                    dimensions = `${this.currentTiledHandle.width} × ${this.currentTiledHandle.height}`;
+                }
+            }
+            
+            // Update the display
+            this.detailName.textContent = selectedImage.name;
+            this.detailDimensions.textContent = dimensions;
+            this.imageDetails.style.display = 'block';
+        } else {
+            this.imageDetails.style.display = 'none';
+        }
     }
 
     async handleFiles(files) {
@@ -434,6 +475,7 @@ export class UIController {
         this.selectedImageIndex = -1;
         this.exportButton.disabled = true;
         this.dragHint.style.display = 'none';
+        this.imageDetails.style.display = 'none';
         this.updateGridControls();
         this.updateExportSizeOptions();
         this.updateStatus('Cleared all images');
