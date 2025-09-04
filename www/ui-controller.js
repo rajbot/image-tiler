@@ -33,6 +33,7 @@ export class UIController {
         this.offsetXInput = document.getElementById('offset-x-input');
         this.offsetYInput = document.getElementById('offset-y-input');
         this.offsetResetBtn = document.getElementById('offset-reset');
+        this.gridToggleBtn = document.getElementById('grid-toggle-btn');
     }
 
     setupEventListeners() {
@@ -98,6 +99,13 @@ export class UIController {
         this.offsetResetBtn.addEventListener('click', () => {
             this.resetOffset();
         });
+
+        // Grid toggle button (optional - may not exist in tests)
+        if (this.gridToggleBtn) {
+            this.gridToggleBtn.addEventListener('click', () => {
+                this.toggleGrid();
+            });
+        }
     }
 
     setupCanvasSelection() {
@@ -746,6 +754,21 @@ export class UIController {
         this.offsetXInput.value = 0;
         this.offsetYInput.value = 0;
         this.applyOffset();
+    }
+
+    toggleGrid() {
+        const newState = this.canvasManager.toggleGrid();
+        
+        // Update button text and appearance (if button exists)
+        if (this.gridToggleBtn) {
+            this.gridToggleBtn.textContent = this.canvasManager.getGridStateText();
+            
+            if (newState > 0) {
+                this.gridToggleBtn.classList.add('active');
+            } else {
+                this.gridToggleBtn.classList.remove('active');
+            }
+        }
     }
 
     updateStatus(message) {

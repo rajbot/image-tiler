@@ -468,6 +468,41 @@
             background: #5a6fd8;
         }
 
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 10px 0;
+        }
+
+        .section-header .section-title {
+            margin: 0;
+        }
+
+        .grid-toggle-btn {
+            padding: 4px 12px;
+            background: #48cae4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .grid-toggle-btn:hover {
+            background: #39b9d1;
+        }
+
+        .grid-toggle-btn.active {
+            background: #667eea;
+        }
+
+        .grid-toggle-btn.active:hover {
+            background: #5a6fd8;
+        }
+
         .status {
             margin-top: 15px;
             padding: 10px;
@@ -576,7 +611,10 @@
             </div>
 
             <div class="canvas-area">
-                <div class="section-title">Preview</div>
+                <div class="section-header">
+                    <div class="section-title">Preview</div>
+                    <button id="grid-toggle-btn" class="grid-toggle-btn">Grid: Off</button>
+                </div>
                 <div class="canvas-container">
                     <canvas id="canvas"></canvas>
                 </div>

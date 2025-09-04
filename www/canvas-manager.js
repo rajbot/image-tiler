@@ -11,6 +11,7 @@ export class CanvasManager {
         this.dragStartY = 0;
         this.lastDragX = 0;
         this.lastDragY = 0;
+        this.gridState = 0; // 0=off, 1=thirds, 2=fifths
         this.initializeCanvas();
         this.setupClickHandling();
         this.setupDragHandling();
@@ -247,6 +248,11 @@ export class CanvasManager {
             );
         }
         
+        // Draw grid overlay if enabled
+        if (this.gridState > 0) {
+            this.drawGrid();
+        }
+        
         // Draw selection outline if needed
         if (this.selectedImageIndex >= 0 && this.imagePositions[this.selectedImageIndex]) {
             const pos = this.imagePositions[this.selectedImageIndex];
@@ -417,5 +423,62 @@ export class CanvasManager {
 
     getCurrentImageData() {
         return this.currentImage;
+    }
+
+    drawGrid() {
+        if (!this.currentImage || !this.imagePositions.length) return;
+
+        const divisions = this.gridState === 1 ? 3 : 5; // thirds or fifths
+        
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([]);
+
+        // Draw grid lines for each tile
+        this.imagePositions.forEach(pos => {
+            const cellWidth = pos.width / divisions;
+            const cellHeight = pos.height / divisions;
+
+            // Draw vertical lines
+            for (let i = 1; i < divisions; i++) {
+                const x = pos.x + i * cellWidth;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, pos.y);
+                this.ctx.lineTo(x, pos.y + pos.height);
+                this.ctx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let i = 1; i < divisions; i++) {
+                const y = pos.y + i * cellHeight;
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, y);
+                this.ctx.lineTo(pos.x + pos.width, y);
+                this.ctx.stroke();
+            }
+        });
+
+        this.ctx.restore();
+    }
+
+    toggleGrid() {
+        // Cycle through: 0 (off) -> 1 (thirds) -> 2 (fifths) -> 0 (off)
+        this.gridState = (this.gridState + 1) % 3;
+        
+        // Redraw to show/hide grid
+        this.redrawWithSelection();
+        
+        // Return the new state for UI updates
+        return this.gridState;
+    }
+
+    getGridStateText() {
+        switch (this.gridState) {
+            case 0: return 'Grid: Off';
+            case 1: return 'Grid: 3x3';
+            case 2: return 'Grid: 5x5';
+            default: return 'Grid: Off';
+        }
     }
 }
