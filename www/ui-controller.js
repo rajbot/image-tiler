@@ -121,9 +121,12 @@ export class UIController {
         // Set up callback for canvas image dragging
         this.canvasManager.onImageDrag = (imageIndex, deltaX, deltaY) => {
             if (imageIndex >= 0) {
+                // Scale drag deltas from canvas/display coordinate space to original image coordinate space
+                const scaledDelta = this.scaleCanvasDeltaToOriginalCoordinates(imageIndex, deltaX, deltaY);
+                
                 const currentOffset = this.imageLoader.getImageOffset(imageIndex);
-                const newOffsetX = currentOffset.x + deltaX;
-                const newOffsetY = currentOffset.y + deltaY;
+                const newOffsetX = currentOffset.x + scaledDelta.x;
+                const newOffsetY = currentOffset.y + scaledDelta.y;
                 
                 this.imageLoader.setImageOffset(imageIndex, newOffsetX, newOffsetY);
                 this.updateOffsetInputs(imageIndex);
@@ -188,20 +191,9 @@ export class UIController {
         if (selectedIndex >= 0 && selectedIndex < images.length) {
             const selectedImage = images[selectedIndex];
             
-            // Get dimensions from the current tiled image
-            let dimensions = 'Unknown';
-            if (this.currentTiledHandle) {
-                // Calculate the dimensions of the selected image within the grid
-                const gridInfo = this.canvasManager.getCurrentImageData()?.gridInfo;
-                if (gridInfo) {
-                    const cellWidth = Math.floor(this.currentTiledHandle.width / gridInfo.cols);
-                    const cellHeight = Math.floor(this.currentTiledHandle.height / gridInfo.rows);
-                    dimensions = `${cellWidth} × ${cellHeight}`;
-                } else {
-                    // Single image case
-                    dimensions = `${this.currentTiledHandle.width} × ${this.currentTiledHandle.height}`;
-                }
-            }
+            // Get dimensions from the original image (not proxy)
+            const imageDimensions = this.imageLoader.getImageDimensions(selectedIndex);
+            const dimensions = `${imageDimensions.width} × ${imageDimensions.height}`;
             
             // Update the display
             this.detailName.textContent = selectedImage.name;
@@ -795,6 +787,40 @@ export class UIController {
         this.offsetXInput.value = 0;
         this.offsetYInput.value = 0;
         this.applyOffset();
+    }
+
+    /**
+     * Scale canvas drag deltas from display coordinate space to original image coordinate space
+     * This is needed because drag coordinates are in canvas/proxy space but offsets are stored in original space
+     */
+    scaleCanvasDeltaToOriginalCoordinates(imageIndex, deltaX, deltaY) {
+        // Check if this image is currently being displayed with a proxy
+        const useProxy = true; // During drag operations, we're using proxy images
+        const isUsingProxy = useProxy && this.imageLoader.hasProxy(imageIndex);
+        
+        if (!isUsingProxy) {
+            // No scaling needed if not using proxy
+            return { x: deltaX, y: deltaY };
+        }
+        
+        // Get original and proxy dimensions to calculate scaling factor
+        const originalDimensions = this.imageLoader.getImageDimensions(imageIndex); // Always returns original
+        const proxyHandle = this.imageLoader.getImageHandle(imageIndex, true); // Get proxy handle
+        
+        if (!proxyHandle) {
+            // No proxy available, no scaling needed
+            return { x: deltaX, y: deltaY };
+        }
+        
+        // Calculate scaling factors
+        const scaleX = originalDimensions.width / proxyHandle.width;
+        const scaleY = originalDimensions.height / proxyHandle.height;
+        
+        // Scale the deltas to original coordinate space
+        return {
+            x: deltaX * scaleX,
+            y: deltaY * scaleY
+        };
     }
 
     /**

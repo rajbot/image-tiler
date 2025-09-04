@@ -51,6 +51,9 @@ describe('UIController Image Selection', () => {
     mockImageLoader = {
       getLoadedImages: jest.fn(() => []),
       getImageHandles: jest.fn(() => []),
+      getImageDimensions: jest.fn(() => ({ width: 1887, height: 2560 })), // Mock original image dimensions
+      hasProxy: jest.fn(() => false), // Mock proxy detection
+      getImageHandle: jest.fn(() => ({ width: 589, height: 799 })), // Mock handle (could be proxy)
       clear: jest.fn(),
       removeImage: jest.fn(),
       reorderImages: jest.fn(() => true),
@@ -293,10 +296,10 @@ describe('UIController Image Selection', () => {
 
       uiController.updateImageDetails(0);
 
-      expect(uiController.detailDimensions.textContent).toBe('800 × 600');
+      expect(uiController.detailDimensions.textContent).toBe('1887 × 2560');
     });
 
-    test('should calculate cell dimensions for grid layout', () => {
+    test('should show original image dimensions regardless of grid layout', () => {
       // Mock grid info for 2x2 grid
       mockCanvasManager.getCurrentImageData = jest.fn(() => ({
         gridInfo: { rows: 2, cols: 2, imageCount: 4 }
@@ -304,11 +307,11 @@ describe('UIController Image Selection', () => {
 
       uiController.updateImageDetails(0);
 
-      // 800 ÷ 2 = 400, 600 ÷ 2 = 300
-      expect(uiController.detailDimensions.textContent).toBe('400 × 300');
+      // Should show original image dimensions, not grid cell dimensions
+      expect(uiController.detailDimensions.textContent).toBe('1887 × 2560');
     });
 
-    test('should calculate cell dimensions for 2x3 grid layout', () => {
+    test('should show original image dimensions for 2x3 grid layout', () => {
       // Mock grid info for 2x3 grid
       mockCanvasManager.getCurrentImageData = jest.fn(() => ({
         gridInfo: { rows: 2, cols: 3, imageCount: 6 }
@@ -316,16 +319,17 @@ describe('UIController Image Selection', () => {
 
       uiController.updateImageDetails(1);
 
-      // 800 ÷ 3 = 266 (floored), 600 ÷ 2 = 300
-      expect(uiController.detailDimensions.textContent).toBe('266 × 300');
+      // Should show original image dimensions, not grid cell dimensions
+      expect(uiController.detailDimensions.textContent).toBe('1887 × 2560');
     });
 
-    test('should show "Unknown" dimensions when no tiled handle exists', () => {
+    test('should show original image dimensions even when no tiled handle exists', () => {
       uiController.currentTiledHandle = null;
 
       uiController.updateImageDetails(0);
 
-      expect(uiController.detailDimensions.textContent).toBe('Unknown');
+      // Should still show original image dimensions from imageLoader, not "Unknown"
+      expect(uiController.detailDimensions.textContent).toBe('1887 × 2560');
       expect(uiController.detailName.textContent).toBe('image1.jpg');
     });
 
@@ -368,13 +372,13 @@ describe('UIController Image Selection', () => {
       expect(uiController.imageDetails.style.display).toBe('none');
     });
 
-    test('should handle canvas data with missing grid info', () => {
+    test('should show original image dimensions when canvas data has missing grid info', () => {
       mockCanvasManager.getCurrentImageData = jest.fn(() => ({}));
 
       uiController.updateImageDetails(0);
 
-      // Should default to full image dimensions when no gridInfo
-      expect(uiController.detailDimensions.textContent).toBe('800 × 600');
+      // Should show original image dimensions, not tiled dimensions
+      expect(uiController.detailDimensions.textContent).toBe('1887 × 2560');
     });
   });
 });
