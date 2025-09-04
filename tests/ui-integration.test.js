@@ -34,6 +34,18 @@ const createValidatingMockFunction = (expectedParamCount, functionName) => {
   });
 };
 
+// Helper function to create proper mock image handles with proxy support
+const createMockHandle = (img, index) => ({
+  handle: `handle${index + 1}`,
+  proxyHandle: null,     // Most test images are small, no proxy needed
+  needsProxy: false,
+  dimensions: { width: 100, height: 100 },
+  metadata: img,
+  zoom: 100,
+  offsetX: 0,
+  offsetY: 0
+});
+
 const mockWasmModule = {
   load_image: jest.fn(() => ({ width: 100, height: 100 })),
   tile_image_with_blank_2x1: jest.fn(() => ({ width: 200, height: 100 })),
@@ -76,6 +88,34 @@ describe('Component Integration Tests', () => {
 
     imageLoader = new ImageLoader();
     canvasManager = new CanvasManager('canvas');
+    
+    // Mock the new proxy-related methods in ImageLoader
+    imageLoader.getImageHandle = jest.fn((index, useProxy = true) => {
+      if (index >= 0 && index < imageLoader.imageHandles.length) {
+        const item = imageLoader.imageHandles[index];
+        // Use proxy if requested and available, otherwise use original
+        if (useProxy && item.proxyHandle) {
+          return item.proxyHandle;
+        }
+        return item.handle;
+      }
+      return null;
+    });
+    
+    imageLoader.hasProxy = jest.fn((index) => {
+      if (index >= 0 && index < imageLoader.imageHandles.length) {
+        const item = imageLoader.imageHandles[index];
+        return item.needsProxy && item.proxyHandle !== null;
+      }
+      return false;
+    });
+    
+    imageLoader.getImageDimensions = jest.fn((index) => {
+      if (index >= 0 && index < imageLoader.imageHandles.length) {
+        return imageLoader.imageHandles[index].dimensions || { width: 100, height: 100 };
+      }
+      return { width: 0, height: 0 };
+    });
 
     jest.clearAllMocks();
   });
@@ -258,11 +298,7 @@ describe('Component Integration Tests', () => {
         { name: 'image3.jpg', size: 1500, data: new Uint8Array([7, 8, 9]) }
       ];
       
-      const mockHandles = mockImages.map((img, i) => ({
-        handle: `handle${i + 1}`,
-        metadata: img,
-        zoom: 100
-      }));
+      const mockHandles = mockImages.map(createMockHandle);
       
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
@@ -408,11 +444,7 @@ describe('Component Integration Tests', () => {
           data: new Uint8Array([i, i + 1, i + 2])
         }));
         
-        const mockHandles = mockImages.map((img, i) => ({
-          handle: `handle${i + 1}`,
-          metadata: img,
-          zoom: 100
-        }));
+        const mockHandles = mockImages.map(createMockHandle);
         
         imageLoader.loadedImages = mockImages;
         imageLoader.imageHandles = mockHandles;
@@ -447,10 +479,7 @@ describe('Component Integration Tests', () => {
         { name: 'image3.jpg', size: 1500, data: new Uint8Array([7, 8, 9]) }
       ];
       
-      const mockHandles = mockImages.map((img, i) => ({
-        handle: `handle${i + 1}`,
-        metadata: img
-      }));
+      const mockHandles = mockImages.map(createMockHandle);
       
       imageLoader.loadedImages = [...mockImages];
       imageLoader.imageHandles = [...mockHandles];
@@ -600,10 +629,7 @@ describe('Component Integration Tests', () => {
         data: new Uint8Array([i, i + 1, i + 2])
       }));
       
-      const mockHandles = mockImages.map((img, i) => ({
-        handle: `handle${i + 1}`,
-        metadata: img
-      }));
+      const mockHandles = mockImages.map(createMockHandle);
       
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
@@ -631,10 +657,7 @@ describe('Component Integration Tests', () => {
         data: new Uint8Array([i, i + 1, i + 2])
       }));
       
-      const mockHandles = mockImages.map((img, i) => ({
-        handle: `handle${i + 1}`,
-        metadata: img
-      }));
+      const mockHandles = mockImages.map(createMockHandle);
       
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
@@ -673,10 +696,7 @@ describe('Component Integration Tests', () => {
         data: new Uint8Array([i, i + 1, i + 2])
       }));
       
-      const mockHandles = mockImages.map((img, i) => ({
-        handle: `handle${i + 1}`,
-        metadata: img
-      }));
+      const mockHandles = mockImages.map(createMockHandle);
       
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
@@ -796,11 +816,7 @@ describe('Component Integration Tests', () => {
           data: new Uint8Array([i, i + 1, i + 2])
         }));
         
-        const mockHandles = mockImages.map((img, i) => ({
-          handle: `handle${i + 1}`,
-          metadata: img,
-          zoom: 100
-        }));
+        const mockHandles = mockImages.map(createMockHandle);
         
         imageLoader.loadedImages = mockImages;
         imageLoader.imageHandles = mockHandles;

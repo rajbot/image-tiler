@@ -369,7 +369,7 @@ export class UIController {
         this.gridCols.value = cols;
     }
 
-    async performGridTiling() {
+    async performGridTiling(useProxy = true) {
         const imageHandleData = this.imageLoader.getImageHandles();
         console.log(`Available image handles: ${imageHandleData.length}`, imageHandleData.map(item => item.handle));
         
@@ -387,19 +387,26 @@ export class UIController {
         }
 
         try {
-            console.log(`Performing grid tiling: ${imageHandleData.length} images in ${rows}x${cols} grid`);
+            const proxyInfo = useProxy ? ' (using proxy images for performance)' : ' (using original images for quality)';
+            console.log(`Performing grid tiling: ${imageHandleData.length} images in ${rows}x${cols} grid${proxyInfo}`);
             
             // Apply individual zoom and pan to each image before tiling
             const zoomedHandles = imageHandleData.map((item, index) => {
                 const zoom = item.zoom || 100;
                 const offsetX = item.offsetX || 0;
                 const offsetY = item.offsetY || 0;
-                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${offsetX}, ${offsetY})`);
+                
+                // Select appropriate handle: proxy for preview, original for export
+                const baseHandle = this.imageLoader.getImageHandle(index, useProxy);
+                const proxyUsed = useProxy && this.imageLoader.hasProxy(index);
+                const handleType = proxyUsed ? 'proxy' : 'original';
+                
+                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${offsetX}, ${offsetY}) to ${handleType} handle`);
                 
                 if (zoom === 100 && offsetX === 0 && offsetY === 0) {
-                    return item.handle;
+                    return baseHandle;
                 } else {
-                    return this.wasmModule.zoom_and_pan_image(item.handle, zoom, offsetX, offsetY);
+                    return this.wasmModule.zoom_and_pan_image(baseHandle, zoom, offsetX, offsetY);
                 }
             });
             
@@ -504,8 +511,8 @@ export class UIController {
     }
 
     async exportImage() {
-        if (!this.currentTiledHandle) {
-            this.updateStatus('No tiled image to export');
+        if (this.imageLoader.getImageHandles().length === 0) {
+            this.updateStatus('No images to export');
             return;
         }
 
@@ -513,8 +520,17 @@ export class UIController {
             const format = this.exportFormat.value;
             const selectedSize = this.exportSize.value;
             
-            // The currentTiledHandle already contains individually zoomed images
+            // Always regenerate with original quality for export (useProxy = false)
+            console.log('Regenerating tiled image with original quality for export...');
+            await this.performGridTiling(false);
+            
+            // Use the freshly generated high-quality tiled image
             let exportHandle = this.currentTiledHandle;
+            
+            if (!exportHandle) {
+                this.updateStatus('Failed to generate high-quality image for export');
+                return;
+            }
             
             // If not original size, resize the image
             if (selectedSize !== 'original') {
