@@ -56,7 +56,8 @@ describe('UIController Image Selection', () => {
       onImageSelected: null,
       selectedImageIndex: -1,
       clear: jest.fn(),
-      redrawWithSelection: jest.fn()
+      redrawWithSelection: jest.fn(),
+      getCurrentImageData: jest.fn(() => null)
     };
 
     mockWasmModule = {};
@@ -237,6 +238,135 @@ describe('UIController Image Selection', () => {
 
       expect(uiController.selectedImageIndex).toBe(0); // Should follow the moved image
       expect(mockCanvasManager.selectedImageIndex).toBe(0);
+    });
+  });
+
+  describe('Image Details functionality', () => {
+    beforeEach(() => {
+      // Mock loaded images for testing
+      mockImageLoader.getLoadedImages.mockReturnValue([
+        { name: 'image1.jpg', size: 1024 },
+        { name: 'very-long-image-name-that-should-be-displayed.png', size: 2048 },
+        { name: 'image3.gif', size: 512 }
+      ]);
+
+      // Mock tiled handle for dimension calculations
+      uiController.currentTiledHandle = {
+        width: 800,
+        height: 600
+      };
+    });
+
+    test('should hide image details when no image is selected', () => {
+      uiController.updateImageDetails(-1);
+
+      expect(uiController.imageDetails.style.display).toBe('none');
+    });
+
+    test('should show image details when image is selected', () => {
+      uiController.updateImageDetails(0);
+
+      expect(uiController.imageDetails.style.display).toBe('block');
+      expect(uiController.detailName.textContent).toBe('image1.jpg');
+    });
+
+    test('should display correct image name for selected image', () => {
+      uiController.updateImageDetails(1);
+
+      expect(uiController.detailName.textContent).toBe('very-long-image-name-that-should-be-displayed.png');
+      expect(uiController.imageDetails.style.display).toBe('block');
+    });
+
+    test('should calculate dimensions for single image layout', () => {
+      // Mock no grid info (single image)
+      mockCanvasManager.getCurrentImageData = jest.fn(() => ({
+        gridInfo: null
+      }));
+
+      uiController.updateImageDetails(0);
+
+      expect(uiController.detailDimensions.textContent).toBe('800 × 600');
+    });
+
+    test('should calculate cell dimensions for grid layout', () => {
+      // Mock grid info for 2x2 grid
+      mockCanvasManager.getCurrentImageData = jest.fn(() => ({
+        gridInfo: { rows: 2, cols: 2, imageCount: 4 }
+      }));
+
+      uiController.updateImageDetails(0);
+
+      // 800 ÷ 2 = 400, 600 ÷ 2 = 300
+      expect(uiController.detailDimensions.textContent).toBe('400 × 300');
+    });
+
+    test('should calculate cell dimensions for 2x3 grid layout', () => {
+      // Mock grid info for 2x3 grid
+      mockCanvasManager.getCurrentImageData = jest.fn(() => ({
+        gridInfo: { rows: 2, cols: 3, imageCount: 6 }
+      }));
+
+      uiController.updateImageDetails(1);
+
+      // 800 ÷ 3 = 266 (floored), 600 ÷ 2 = 300
+      expect(uiController.detailDimensions.textContent).toBe('266 × 300');
+    });
+
+    test('should show "Unknown" dimensions when no tiled handle exists', () => {
+      uiController.currentTiledHandle = null;
+
+      uiController.updateImageDetails(0);
+
+      expect(uiController.detailDimensions.textContent).toBe('Unknown');
+      expect(uiController.detailName.textContent).toBe('image1.jpg');
+    });
+
+    test('should hide details for invalid selection index', () => {
+      uiController.updateImageDetails(99); // Out of bounds
+
+      expect(uiController.imageDetails.style.display).toBe('none');
+    });
+
+    test('should hide details for negative selection index', () => {
+      uiController.updateImageDetails(-5);
+
+      expect(uiController.imageDetails.style.display).toBe('none');
+    });
+
+    test('should update details when selection changes', () => {
+      // First selection
+      uiController.updateImageDetails(0);
+      expect(uiController.detailName.textContent).toBe('image1.jpg');
+
+      // Change selection
+      uiController.updateImageDetails(2);
+      expect(uiController.detailName.textContent).toBe('image3.gif');
+      expect(uiController.imageDetails.style.display).toBe('block');
+    });
+
+    test('should integrate with updateImageListSelection', () => {
+      const updateDetailsSpy = jest.spyOn(uiController, 'updateImageDetails');
+      
+      uiController.updateImageListSelection(1);
+
+      expect(updateDetailsSpy).toHaveBeenCalledWith(1);
+    });
+
+    test('should handle empty image list gracefully', () => {
+      mockImageLoader.getLoadedImages.mockReturnValue([]);
+
+      uiController.updateImageDetails(0);
+
+      expect(uiController.imageDetails.style.display).toBe('none');
+    });
+
+    test('should handle canvas data with missing grid info', () => {
+      mockCanvasManager.getCurrentImageData = jest.fn(() => ({}));
+
+      uiController.updateImageDetails(0);
+
+      // Should default to full image dimensions when no gridInfo
+      expect(uiController.detailDimensions.textContent).toBe('800 × 600');
     });
   });
 });
