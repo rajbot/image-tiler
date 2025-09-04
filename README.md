@@ -2,7 +2,7 @@
 
 A high-performance image tiling application that combines images into 2x1 or 2x2 layouts. Built with Rust/WebAssembly for fast image processing and a modern JavaScript frontend.
 
-![Image Tiler Demo](https://via.placeholder.com/600x300/2d3748/ffffff?text=Image+Tiler+Demo)
+**🚀 [Try the Image Tiler Demo](https://www.bitstream.io/image-tiler/) 🚀**
 
 ## Features
 

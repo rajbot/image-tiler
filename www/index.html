@@ -40,6 +40,17 @@
             opacity: 0.9;
         }
 
+        .header h1 a {
+            color: inherit;
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .header h1 a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+
         .main-content {
             display: grid;
             grid-template-columns: 320px 1fr;
@@ -457,7 +468,7 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>🖼️ Image Tiler</h1>
+            <h1>🖼️ <a href="https://github.com/rajbot/image-tiler" target="_blank" rel="noopener noreferrer">Open-source</a> Image Tiler</h1>
             <p>Tile your images side-by-side or in a grid with WebAssembly-powered processing</p>
         </header>
 
