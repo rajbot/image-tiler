@@ -331,6 +331,67 @@ pub fn resize_image(handle: &ImageHandle, width: u32, height: u32) -> ImageHandl
 }
 
 #[wasm_bindgen]
+pub fn zoom_image(handle: &ImageHandle, zoom_percentage: u32) -> Result<ImageHandle, JsValue> {
+    if zoom_percentage == 0 {
+        return Err(JsValue::from_str("Zoom percentage must be greater than 0"));
+    }
+    
+    let zoom_factor = zoom_percentage as f32 / 100.0;
+    let original_width = handle.image.width();
+    let original_height = handle.image.height();
+    
+    console_log!("Zooming image {}x{} by {}%", original_width, original_height, zoom_percentage);
+    
+    if zoom_percentage == 100 {
+        // No zoom needed, return copy of original
+        return Ok(ImageHandle { image: handle.image.clone() });
+    } else if zoom_percentage > 100 {
+        // Zoom in: crop to center and scale up
+        let crop_factor = 1.0 / zoom_factor;
+        let crop_width = (original_width as f32 * crop_factor) as u32;
+        let crop_height = (original_height as f32 * crop_factor) as u32;
+        
+        // Ensure minimum crop size
+        let crop_width = crop_width.max(1);
+        let crop_height = crop_height.max(1);
+        
+        // Center the crop
+        let crop_x = (original_width.saturating_sub(crop_width)) / 2;
+        let crop_y = (original_height.saturating_sub(crop_height)) / 2;
+        
+        console_log!("Zoom in: cropping {}x{} at ({},{}) then scaling to {}x{}", 
+                     crop_width, crop_height, crop_x, crop_y, original_width, original_height);
+        
+        let cropped = handle.image.crop_imm(crop_x, crop_y, crop_width, crop_height);
+        let zoomed = cropped.resize(original_width, original_height, FilterType::Lanczos3);
+        Ok(ImageHandle { image: zoomed })
+    } else {
+        // Zoom out: resize smaller and center with transparent padding
+        let new_width = (original_width as f32 * zoom_factor) as u32;
+        let new_height = (original_height as f32 * zoom_factor) as u32;
+        
+        // Ensure minimum size
+        let new_width = new_width.max(1);
+        let new_height = new_height.max(1);
+        
+        console_log!("Zoom out: resizing to {}x{} then centering in {}x{}", 
+                     new_width, new_height, original_width, original_height);
+        
+        let resized = handle.image.resize(new_width, new_height, FilterType::Lanczos3);
+        
+        // Create transparent canvas at original size
+        let mut result = DynamicImage::new_rgba8(original_width, original_height);
+        
+        // Center the resized image
+        let x_offset = (original_width.saturating_sub(new_width)) / 2;
+        let y_offset = (original_height.saturating_sub(new_height)) / 2;
+        
+        image::imageops::overlay(&mut result, &resized, x_offset as i64, y_offset as i64);
+        Ok(ImageHandle { image: result })
+    }
+}
+
+#[wasm_bindgen]
 pub fn export_image(handle: &ImageHandle, format: &str) -> Result<Vec<u8>, JsValue> {
     let mut buffer = Vec::new();
     let mut cursor = Cursor::new(&mut buffer);

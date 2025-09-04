@@ -38,7 +38,9 @@ describe('UIController Image Selection', () => {
       'drag-hint': { style: { display: 'none' } },
       'image-details': { style: { display: 'none' } },
       'detail-name': { textContent: '' },
-      'detail-dimensions': { textContent: '' }
+      'detail-dimensions': { textContent: '' },
+      'zoom-input': { value: '100', addEventListener: jest.fn() },
+      'zoom-reset': { addEventListener: jest.fn() }
     };
 
     document.getElementById = jest.fn((id) => mockElements[id]);
@@ -49,7 +51,9 @@ describe('UIController Image Selection', () => {
       getImageHandles: jest.fn(() => []),
       clear: jest.fn(),
       removeImage: jest.fn(),
-      reorderImages: jest.fn(() => true)
+      reorderImages: jest.fn(() => true),
+      setImageZoom: jest.fn(() => true),
+      getImageZoom: jest.fn(() => 100)
     };
 
     mockCanvasManager = {

@@ -50,7 +50,8 @@ const mockWasmModule = {
   tile_images_grid_8: createValidatingMockFunction(10, 'tile_images_grid_8'), // rows, cols, img1-img8
   tile_images_grid_9: createValidatingMockFunction(11, 'tile_images_grid_9'), // rows, cols, img1-img9
   resize_image: jest.fn((handle, width, height) => ({ width, height })),
-  export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4]))
+  export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4])),
+  zoom_image: jest.fn((handle, zoomPercentage) => ({ width: handle.width, height: handle.height }))
 };
 
 describe('Component Integration Tests', () => {
@@ -168,6 +169,11 @@ describe('Component Integration Tests', () => {
         <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
       `;
 
       // Import UIController dynamically to avoid module loading issues
@@ -261,6 +267,11 @@ describe('Component Integration Tests', () => {
         <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -274,7 +285,7 @@ describe('Component Integration Tests', () => {
       // Simulate loading first image
       const mockImageData1 = { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) };
       imageLoader.loadedImages = [mockImageData1];
-      imageLoader.imageHandles = [{ handle: 'handle1', metadata: mockImageData1 }];
+      imageLoader.imageHandles = [{ handle: 'handle1', metadata: mockImageData1, zoom: 100 }];
       
       // Auto-preview should trigger 1x2 grid with 1 image
       await uiController.updateAutoPreview();
@@ -290,7 +301,7 @@ describe('Component Integration Tests', () => {
       const mockImageData2 = { name: 'image2.jpg', size: 1200, data: new Uint8Array([4, 5, 6]) };
       imageLoader.loadedImages = [mockImageData1, mockImageData2];
       imageLoader.imageHandles = [
-        { handle: 'handle1', metadata: mockImageData1 },
+        { handle: 'handle1', metadata: mockImageData1, zoom: 100 },
         { handle: 'handle2', metadata: mockImageData2 }
       ];
       
@@ -308,7 +319,7 @@ describe('Component Integration Tests', () => {
       const mockImageData3 = { name: 'image3.jpg', size: 1500, data: new Uint8Array([7, 8, 9]) };
       imageLoader.loadedImages = [mockImageData1, mockImageData2, mockImageData3];
       imageLoader.imageHandles = [
-        { handle: 'handle1', metadata: mockImageData1 },
+        { handle: 'handle1', metadata: mockImageData1, zoom: 100 },
         { handle: 'handle2', metadata: mockImageData2 },
         { handle: 'handle3', metadata: mockImageData3 }
       ];
@@ -352,7 +363,8 @@ describe('Component Integration Tests', () => {
         
         const mockHandles = mockImages.map((img, i) => ({
           handle: `handle${i + 1}`,
-          metadata: img
+          metadata: img,
+          zoom: 100
         }));
         
         imageLoader.loadedImages = mockImages;
@@ -432,6 +444,11 @@ describe('Component Integration Tests', () => {
         <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -457,9 +474,9 @@ describe('Component Integration Tests', () => {
 
     test('should call tile_images_grid with correct parameters', async () => {
       const mockHandles = [
-        { handle: 'handle1' },
-        { handle: 'handle2' },
-        { handle: 'handle3' }
+        { handle: 'handle1', zoom: 100 },
+        { handle: 'handle2', zoom: 100 },
+        { handle: 'handle3', zoom: 100 }
       ];
       
       // Mock getImageHandles to return our test handles
@@ -512,6 +529,11 @@ describe('Component Integration Tests', () => {
         <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -578,7 +600,7 @@ describe('Component Integration Tests', () => {
 
     test('should handle invalid grid dimensions gracefully', async () => {
       const mockImages = [{ name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }];
-      const mockHandles = [{ handle: 'handle1', metadata: mockImages[0] }];
+      const mockHandles = [{ handle: 'handle1', metadata: mockImages[0], zoom: 100 }];
       
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
@@ -636,6 +658,11 @@ describe('Component Integration Tests', () => {
         <button id="clear-btn"></button>
         <div id="status"></div>
         <div id="drag-hint"></div>
+        <div id="image-details"></div>
+        <span id="detail-name"></span>
+        <span id="detail-dimensions"></span>
+        <input type="number" id="zoom-input" value="100">
+        <button id="zoom-reset"></button>
       `;
 
       const { UIController } = require('../www/ui-controller.js');
@@ -718,7 +745,8 @@ describe('Component Integration Tests', () => {
         
         const mockHandles = mockImages.map((img, i) => ({
           handle: `handle${i + 1}`,
-          metadata: img
+          metadata: img,
+          zoom: 100
         }));
         
         imageLoader.loadedImages = mockImages;

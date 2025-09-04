@@ -29,6 +29,8 @@ export class UIController {
         this.imageDetails = document.getElementById('image-details');
         this.detailName = document.getElementById('detail-name');
         this.detailDimensions = document.getElementById('detail-dimensions');
+        this.zoomInput = document.getElementById('zoom-input');
+        this.zoomResetBtn = document.getElementById('zoom-reset');
     }
 
     setupEventListeners() {
@@ -75,6 +77,15 @@ export class UIController {
         // Clear button
         this.clearButton.addEventListener('click', () => {
             this.clearAll();
+        });
+
+        // Zoom controls
+        this.zoomInput.addEventListener('change', () => {
+            this.applyZoom();
+        });
+
+        this.zoomResetBtn.addEventListener('click', () => {
+            this.resetZoom();
         });
     }
 
@@ -130,6 +141,11 @@ export class UIController {
             // Update the display
             this.detailName.textContent = selectedImage.name;
             this.detailDimensions.textContent = dimensions;
+            
+            // Update zoom input to show the selected image's zoom level
+            const currentZoom = this.imageLoader.getImageZoom(selectedIndex);
+            this.zoomInput.value = currentZoom;
+            
             this.imageDetails.style.display = 'block';
         } else {
             this.imageDetails.style.display = 'none';
@@ -309,10 +325,10 @@ export class UIController {
     }
 
     async performGridTiling() {
-        const handles = this.imageLoader.getImageHandles().map(item => item.handle);
-        console.log(`Available image handles: ${handles.length}`, handles);
+        const imageHandleData = this.imageLoader.getImageHandles();
+        console.log(`Available image handles: ${imageHandleData.length}`, imageHandleData.map(item => item.handle));
         
-        if (handles.length === 0) {
+        if (imageHandleData.length === 0) {
             this.updateStatus('No images to tile');
             return;
         }
@@ -326,40 +342,52 @@ export class UIController {
         }
 
         try {
-            console.log(`Performing grid tiling: ${handles.length} images in ${rows}x${cols} grid`);
+            console.log(`Performing grid tiling: ${imageHandleData.length} images in ${rows}x${cols} grid`);
+            
+            // Apply individual zoom to each image before tiling
+            const zoomedHandles = imageHandleData.map((item, index) => {
+                const zoom = item.zoom || 100;
+                console.log(`Image ${index}: applying ${zoom}% zoom`);
+                
+                if (zoom === 100) {
+                    return item.handle;
+                } else {
+                    return this.wasmModule.zoom_image(item.handle, zoom);
+                }
+            });
             
             // Call the appropriate function based on number of images
             let tiledHandle;
-            switch (handles.length) {
+            switch (zoomedHandles.length) {
                 case 1:
-                    tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, handles[0]);
+                    tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, zoomedHandles[0]);
                     break;
                 case 2:
-                    tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, handles[0], handles[1]);
+                    tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, zoomedHandles[0], zoomedHandles[1]);
                     break;
                 case 3:
-                    tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, handles[0], handles[1], handles[2]);
+                    tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
                     break;
                 case 4:
-                    tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, handles[0], handles[1], handles[2], handles[3]);
+                    tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
                     break;
                 case 5:
-                    tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4]);
+                    tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
                     break;
                 case 6:
-                    tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5]);
+                    tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
                     break;
                 case 7:
-                    tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6]);
+                    tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
                     break;
                 case 8:
-                    tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7]);
+                    tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
                     break;
                 case 9:
-                    tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7], handles[8]);
+                    tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
                     break;
                 default:
-                    throw new Error(`Unsupported number of images: ${handles.length}. Maximum supported is 9 images.`);
+                    throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
             }
             const exportFormat = this.exportFormat.value;
             const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
@@ -368,7 +396,7 @@ export class UIController {
             const gridInfo = {
                 rows: rows,
                 cols: cols,
-                imageCount: handles.length
+                imageCount: imageHandleData.length
             };
             
             await this.canvasManager.displayImageFromBytes(imageBytes, 'tiled-result', gridInfo);
@@ -437,12 +465,14 @@ export class UIController {
         try {
             const format = this.exportFormat.value;
             const selectedSize = this.exportSize.value;
+            
+            // The currentTiledHandle already contains individually zoomed images
             let exportHandle = this.currentTiledHandle;
             
             // If not original size, resize the image
             if (selectedSize !== 'original') {
                 const [width, height] = selectedSize.split('x').map(Number);
-                exportHandle = this.wasmModule.resize_image(this.currentTiledHandle, width, height);
+                exportHandle = this.wasmModule.resize_image(exportHandle, width, height);
             }
             
             const imageBytes = this.wasmModule.export_image(exportHandle, format);
@@ -599,6 +629,48 @@ export class UIController {
         images.forEach((imageData, index) => {
             this.addImageToList(imageData, index === this.selectedImageIndex);
         });
+    }
+
+    applyZoom() {
+        if (this.selectedImageIndex === -1) {
+            this.updateStatus('No image selected for zoom');
+            return;
+        }
+
+        const zoomValue = parseInt(this.zoomInput.value);
+        if (isNaN(zoomValue) || zoomValue < 10 || zoomValue > 500) {
+            this.updateStatus('Zoom must be between 10% and 500%');
+            const currentZoom = this.imageLoader.getImageZoom(this.selectedImageIndex);
+            this.zoomInput.value = currentZoom;
+            return;
+        }
+
+        try {
+            console.log(`Applying ${zoomValue}% zoom to image ${this.selectedImageIndex}`);
+            
+            // Set the zoom level for the selected image
+            this.imageLoader.setImageZoom(this.selectedImageIndex, zoomValue);
+            
+            // Regenerate the tiled image with the new zoom
+            this.performGridTiling();
+            
+            this.updateStatus(`Zoom applied to selected image: ${zoomValue}%`);
+        } catch (error) {
+            console.error('Error applying zoom:', error);
+            this.updateStatus(`Error applying zoom: ${error.message}`);
+            const currentZoom = this.imageLoader.getImageZoom(this.selectedImageIndex);
+            this.zoomInput.value = currentZoom;
+        }
+    }
+
+    resetZoom() {
+        if (this.selectedImageIndex === -1) {
+            this.updateStatus('No image selected for zoom reset');
+            return;
+        }
+        
+        this.zoomInput.value = 100;
+        this.applyZoom();
     }
 
     updateStatus(message) {

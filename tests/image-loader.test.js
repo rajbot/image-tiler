@@ -151,4 +151,61 @@ describe('ImageLoader', () => {
       expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('mock-url');
     });
   });
+
+  describe('zoom functionality', () => {
+    beforeEach(() => {
+      imageLoader.loadedImages = [
+        { name: 'image1.jpg' },
+        { name: 'image2.jpg' },
+        { name: 'image3.jpg' }
+      ];
+      imageLoader.imageHandles = [
+        { handle: 'handle1', metadata: { name: 'image1.jpg' }, zoom: 100 },
+        { handle: 'handle2', metadata: { name: 'image2.jpg' }, zoom: 150 },
+        { handle: 'handle3', metadata: { name: 'image3.jpg' }, zoom: 50 }
+      ];
+    });
+
+    test('should set image zoom level', () => {
+      const result = imageLoader.setImageZoom(0, 200);
+      
+      expect(result).toBe(true);
+      expect(imageLoader.imageHandles[0].zoom).toBe(200);
+    });
+
+    test('should get image zoom level', () => {
+      expect(imageLoader.getImageZoom(0)).toBe(100);
+      expect(imageLoader.getImageZoom(1)).toBe(150);
+      expect(imageLoader.getImageZoom(2)).toBe(50);
+    });
+
+    test('should return false for invalid index when setting zoom', () => {
+      expect(imageLoader.setImageZoom(-1, 200)).toBe(false);
+      expect(imageLoader.setImageZoom(10, 200)).toBe(false);
+    });
+
+    test('should return default zoom for invalid index when getting zoom', () => {
+      expect(imageLoader.getImageZoom(-1)).toBe(100);
+      expect(imageLoader.getImageZoom(10)).toBe(100);
+    });
+
+    test('should preserve zoom levels during reordering', () => {
+      // Before: [100, 150, 50] at indices [0, 1, 2]
+      // Moving index 0 to index 2: [150, 50, 100] at indices [0, 1, 2]
+      imageLoader.reorderImages(0, 2);
+      
+      // After moving index 0 to index 2, the zooms should follow
+      expect(imageLoader.getImageZoom(0)).toBe(150); // was index 1
+      expect(imageLoader.getImageZoom(1)).toBe(50);  // was index 2  
+      expect(imageLoader.getImageZoom(2)).toBe(100); // was index 0
+    });
+
+    test('should initialize new images with default zoom', () => {
+      // This tests that new images added via loadImageHandle get zoom: 100
+      const newHandle = { handle: 'new-handle', metadata: { name: 'new.jpg' }, zoom: 100 };
+      imageLoader.imageHandles.push(newHandle);
+      
+      expect(imageLoader.getImageZoom(3)).toBe(100);
+    });
+  });
 });

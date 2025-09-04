@@ -40,7 +40,8 @@ export class ImageLoader {
             const handle = wasmModule.load_image(imageData.data);
             this.imageHandles.push({
                 handle: handle,
-                metadata: imageData
+                metadata: imageData,
+                zoom: 100  // Default zoom level
             });
             return handle;
         } catch (error) {
@@ -93,5 +94,20 @@ export class ImageLoader {
             return true;
         }
         return false;
+    }
+
+    setImageZoom(index, zoomLevel) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            this.imageHandles[index].zoom = zoomLevel;
+            return true;
+        }
+        return false;
+    }
+
+    getImageZoom(index) {
+        if (index >= 0 && index < this.imageHandles.length) {
+            return this.imageHandles[index].zoom;
+        }
+        return 100; // Default zoom
     }
 }
