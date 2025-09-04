@@ -212,9 +212,9 @@ export class UIController {
             this.detailName.textContent = selectedImage.name;
             this.detailDimensions.textContent = dimensions;
             
-            // Update zoom input to show the selected image's zoom level
-            const currentZoom = this.imageLoader.getImageZoom(selectedIndex);
-            this.zoomInput.value = currentZoom;
+            // Update zoom input to show the effective zoom level (including grid scaling)
+            const effectiveZoom = this.calculateEffectiveZoom(selectedIndex);
+            this.zoomInput.value = Math.round(effectiveZoom);
             
             // Update offset inputs to show the selected image's offset values
             const currentOffset = this.imageLoader.getImageOffset(selectedIndex);
@@ -732,28 +732,34 @@ export class UIController {
         }
 
         const zoomValue = parseInt(this.zoomInput.value);
-        if (isNaN(zoomValue) || zoomValue < 10 || zoomValue > 500) {
-            this.updateStatus('Zoom must be between 10% and 500%');
-            const currentZoom = this.imageLoader.getImageZoom(this.selectedImageIndex);
-            this.zoomInput.value = currentZoom;
+        if (isNaN(zoomValue) || zoomValue < 10 || zoomValue > 10000) {
+            this.updateStatus('Zoom must be between 10% and 10000%');
+            // Reset to current effective zoom
+            const effectiveZoom = this.calculateEffectiveZoom(this.selectedImageIndex);
+            this.zoomInput.value = Math.round(effectiveZoom);
             return;
         }
 
         try {
-            console.log(`Applying ${zoomValue}% zoom to image ${this.selectedImageIndex}`);
+            console.log(`Applying ${zoomValue}% effective zoom to image ${this.selectedImageIndex}`);
             
-            // Set the zoom level for the selected image
-            this.imageLoader.setImageZoom(this.selectedImageIndex, zoomValue);
+            // Convert from effective zoom (what user sees) to user zoom (what we store)
+            const userZoom = this.convertEffectiveZoomToUserZoom(this.selectedImageIndex, zoomValue);
+            console.log(`Effective zoom ${zoomValue}% converts to user zoom ${userZoom.toFixed(1)}%`);
+            
+            // Set the converted zoom level for the selected image
+            this.imageLoader.setImageZoom(this.selectedImageIndex, userZoom);
             
             // Regenerate the tiled image with the new zoom
             this.performGridTiling();
             
-            this.updateStatus(`Zoom applied to selected image: ${zoomValue}%`);
+            this.updateStatus(`Effective zoom applied to selected image: ${zoomValue}%`);
         } catch (error) {
             console.error('Error applying zoom:', error);
             this.updateStatus(`Error applying zoom: ${error.message}`);
-            const currentZoom = this.imageLoader.getImageZoom(this.selectedImageIndex);
-            this.zoomInput.value = currentZoom;
+            // Reset to current effective zoom
+            const effectiveZoom = this.calculateEffectiveZoom(this.selectedImageIndex);
+            this.zoomInput.value = Math.round(effectiveZoom);
         }
     }
 
@@ -920,6 +926,91 @@ export class UIController {
         
         console.log(`Scaled delta: (${scaledDelta.x}, ${scaledDelta.y})`);
         return scaledDelta;
+    }
+
+    /**
+     * Calculate the effective zoom including grid scaling factor
+     * When images are tiled together, they get scaled to create uniform grid cells
+     * This returns the actual zoom percentage being applied to the image
+     */
+    calculateEffectiveZoom(imageIndex) {
+        const userZoom = this.imageLoader.getImageZoom(imageIndex);
+        
+        // If there's only one image or no tiled result, no grid scaling is applied
+        const imageCount = this.imageLoader.getLoadedImages().length;
+        if (imageCount <= 1 || !this.currentTiledHandle) {
+            return userZoom;
+        }
+        
+        // Calculate grid scaling factor based on how images are scaled relative to the largest image
+        const imageDimensions = this.imageLoader.getImageDimensions(imageIndex);
+        const allImages = this.imageLoader.getLoadedImages();
+        
+        if (!imageDimensions || allImages.length === 0) {
+            return userZoom;
+        }
+        
+        // Find the largest image dimensions among all images (this becomes the reference)
+        let maxWidth = 0;
+        let maxHeight = 0;
+        for (let i = 0; i < allImages.length; i++) {
+            const dims = this.imageLoader.getImageDimensions(i);
+            maxWidth = Math.max(maxWidth, dims.width);
+            maxHeight = Math.max(maxHeight, dims.height);
+        }
+        
+        // Calculate how much this image gets scaled relative to the largest image
+        // Images are scaled to fit within the reference dimensions while preserving aspect ratio
+        // This means scaling by the factor that makes the image fit without clipping
+        const scaleX = maxWidth / imageDimensions.width;
+        const scaleY = maxHeight / imageDimensions.height;
+        const gridScaleFactor = Math.min(scaleX, scaleY); // Use smaller scale to prevent clipping
+        
+        // The effective zoom is the user zoom multiplied by the grid scaling factor
+        const effectiveZoomPercent = userZoom * gridScaleFactor;
+        
+        console.log(`Image ${imageIndex}: ${imageDimensions.width}×${imageDimensions.height} → reference ${maxWidth}×${maxHeight}, scaleX: ${scaleX.toFixed(3)}, scaleY: ${scaleY.toFixed(3)}, grid scale: ${gridScaleFactor.toFixed(3)}, user zoom: ${userZoom}%, effective: ${effectiveZoomPercent.toFixed(1)}%`);
+        
+        return effectiveZoomPercent;
+    }
+
+    /**
+     * Convert effective zoom (what user sees) to user zoom (what we store)
+     * This is the inverse of calculateEffectiveZoom
+     */
+    convertEffectiveZoomToUserZoom(imageIndex, effectiveZoom) {
+        // If there's only one image, no conversion needed
+        const imageCount = this.imageLoader.getLoadedImages().length;
+        if (imageCount <= 1) {
+            return effectiveZoom;
+        }
+        
+        // Get the same grid scaling factor used in calculateEffectiveZoom
+        const imageDimensions = this.imageLoader.getImageDimensions(imageIndex);
+        const allImages = this.imageLoader.getLoadedImages();
+        
+        if (!imageDimensions || allImages.length === 0) {
+            return effectiveZoom;
+        }
+        
+        // Calculate the same grid scaling factor
+        let maxWidth = 0;
+        let maxHeight = 0;
+        for (let i = 0; i < allImages.length; i++) {
+            const dims = this.imageLoader.getImageDimensions(i);
+            maxWidth = Math.max(maxWidth, dims.width);
+            maxHeight = Math.max(maxHeight, dims.height);
+        }
+        
+        const scaleX = maxWidth / imageDimensions.width;
+        const scaleY = maxHeight / imageDimensions.height;
+        const gridScaleFactor = Math.min(scaleX, scaleY);
+        
+        // Convert: effectiveZoom = userZoom * gridScaleFactor
+        // So: userZoom = effectiveZoom / gridScaleFactor
+        const userZoom = effectiveZoom / gridScaleFactor;
+        
+        return userZoom;
     }
 
     /**
