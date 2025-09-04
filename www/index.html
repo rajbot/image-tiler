@@ -19,14 +19,14 @@
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            margin: 0;
+            padding: 10px;
+            width: 100%;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             color: white;
         }
 
@@ -42,23 +42,23 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 30px;
+            grid-template-columns: 320px 1fr;
+            gap: 15px;
             align-items: start;
         }
 
         .sidebar {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
         }
 
         .canvas-area {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
             text-align: center;
         }
 
@@ -302,9 +302,13 @@
 
         .canvas-container {
             margin-top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
         }
 
         #canvas {
+            width: 100%;
             max-width: 100%;
             height: auto;
             border: 2px solid #e1e5e9;
@@ -333,6 +337,14 @@
             height: 64px;
             margin-bottom: 15px;
             opacity: 0.5;
+        }
+
+        /* Better use of large screens */
+        @media (min-width: 1400px) {
+            .main-content {
+                grid-template-columns: 300px 1fr;
+                gap: 20px;
+            }
         }
 
         @media (max-width: 768px) {
@@ -415,7 +427,7 @@
             <div class="canvas-area">
                 <div class="section-title">Preview</div>
                 <div class="canvas-container">
-                    <canvas id="canvas" width="800" height="600"></canvas>
+                    <canvas id="canvas"></canvas>
                 </div>
                 <div id="status" class="status">Initializing...</div>
             </div>

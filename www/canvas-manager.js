@@ -3,6 +3,41 @@ export class CanvasManager {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.currentImage = null;
+        this.initializeCanvas();
+    }
+
+    initializeCanvas() {
+        // Set initial canvas size based on container
+        this.updateCanvasSize();
+        
+        // Add resize listener to update canvas when window resizes
+        window.addEventListener('resize', () => {
+            this.updateCanvasSize();
+            // Redraw current image if available
+            if (this.currentImage) {
+                this.redrawCurrentImage();
+            }
+        });
+    }
+
+    updateCanvasSize() {
+        const container = this.canvas.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Use container width, but set a reasonable max height
+        const maxWidth = Math.floor(containerRect.width - 20); // Leave some margin
+        const maxHeight = Math.min(Math.floor(window.innerHeight * 0.6), 800); // 60% of viewport height, max 800px
+        
+        // Set canvas size
+        this.canvas.width = Math.max(maxWidth, 400); // Minimum 400px width
+        this.canvas.height = Math.max(maxHeight, 300); // Minimum 300px height
+    }
+
+    redrawCurrentImage() {
+        if (this.currentImage) {
+            const { imageData, scaledWidth, scaledHeight } = this.currentImage;
+            this.displayImage(imageData);
+        }
     }
 
     async displayImage(imageData) {
@@ -10,8 +45,8 @@ export class CanvasManager {
             const img = new Image();
             
             img.onload = () => {
-                this.canvas.width = Math.min(img.width, 800);
-                this.canvas.height = Math.min(img.height, 600);
+                // Update canvas size to fit container
+                this.updateCanvasSize();
                 
                 const scale = Math.min(
                     this.canvas.width / img.width,
@@ -52,8 +87,8 @@ export class CanvasManager {
             const img = new Image();
             
             img.onload = () => {
-                this.canvas.width = Math.min(img.width, 800);
-                this.canvas.height = Math.min(img.height, 600);
+                // Update canvas size to fit container
+                this.updateCanvasSize();
                 
                 const scale = Math.min(
                     this.canvas.width / img.width,
@@ -93,6 +128,7 @@ export class CanvasManager {
     }
 
     clear() {
+        this.updateCanvasSize();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         if (this.currentImage && this.currentImage.url) {
             URL.revokeObjectURL(this.currentImage.url);
