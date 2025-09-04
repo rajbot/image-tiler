@@ -242,10 +242,19 @@ describe('Component Integration Tests', () => {
       expect(options.some(opt => opt.includes('×640'))).toBe(true);
     });
 
-    test('should calculate correct export dimensions for 2x1 aspect ratio', () => {
+    test('should calculate correct export dimensions for 2x1 aspect ratio', async () => {
+      // Setup mock image handles
+      const mockImageData = { name: 'test.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) };
+      const mockHandles = [createMockHandle(mockImageData, 0)];
+      imageLoader.loadedImages = [mockImageData];
+      imageLoader.imageHandles = mockHandles;
+      
       // Simulate a 2x1 tiled image
       const tiledHandle = { width: 200, height: 100 }; // 2:1 aspect ratio
       uiController.currentTiledHandle = tiledHandle;
+      
+      // Mock performGridTiling to return the tiled handle
+      jest.spyOn(uiController, 'performGridTiling').mockResolvedValue(tiledHandle);
       
       uiController.updateExportSizeOptions();
       
@@ -254,7 +263,7 @@ describe('Component Integration Tests', () => {
       dropdown.value = '1920x960'; // Should be available for 2:1 ratio
       
       // Mock the export process
-      uiController.exportImage();
+      await uiController.exportImage();
       
       // Verify resize_image was called with correct dimensions
       expect(mockWasmModule.resize_image).toHaveBeenCalledWith(tiledHandle, 1920, 960);
@@ -276,8 +285,17 @@ describe('Component Integration Tests', () => {
     });
 
     test('should handle original size export without resizing', async () => {
+      // Setup mock image handles
+      const mockImageData = { name: 'test.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) };
+      const mockHandles = [createMockHandle(mockImageData, 0)];
+      imageLoader.loadedImages = [mockImageData];
+      imageLoader.imageHandles = mockHandles;
+      
       const tiledHandle = { width: 200, height: 100 };
       uiController.currentTiledHandle = tiledHandle;
+      
+      // Mock performGridTiling to return the tiled handle
+      jest.spyOn(uiController, 'performGridTiling').mockResolvedValue(tiledHandle);
       
       // Select original size
       const dropdown = document.getElementById('export-size');
@@ -304,10 +322,14 @@ describe('Component Integration Tests', () => {
       imageLoader.loadedImages = mockImages;
       imageLoader.imageHandles = mockHandles;
       
+      // Set grid inputs to 2x2 (for 3 images)
+      document.getElementById('grid-rows').value = '2';
+      document.getElementById('grid-cols').value = '2';
+      
       // Create initial grid
       await uiController.performGridTiling();
       
-      // Mock the canvas manager methods
+      // Mock the canvas manager methods with matching grid info
       const mockGridInfo = { rows: 2, cols: 2, imageCount: 3 };
       canvasManager.getCurrentImageData = jest.fn(() => ({
         gridInfo: mockGridInfo
@@ -553,13 +575,13 @@ describe('Component Integration Tests', () => {
 
     test('should call tile_images_grid with correct parameters', async () => {
       const mockHandles = [
-        { handle: 'handle1', zoom: 100 },
-        { handle: 'handle2', zoom: 100 },
-        { handle: 'handle3', zoom: 100 }
+        { handle: 'handle1', zoom: 100, proxyHandle: null, needsProxy: false },
+        { handle: 'handle2', zoom: 100, proxyHandle: null, needsProxy: false },
+        { handle: 'handle3', zoom: 100, proxyHandle: null, needsProxy: false }
       ];
       
-      // Mock getImageHandles to return our test handles
-      imageLoader.getImageHandles = jest.fn(() => mockHandles);
+      // Set the imageHandles properly
+      imageLoader.imageHandles = mockHandles;
       
       // Set grid inputs
       document.getElementById('grid-rows').value = '2';
