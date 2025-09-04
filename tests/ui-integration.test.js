@@ -246,6 +246,48 @@ describe('Component Integration Tests', () => {
       // Verify export_image was called with original handle
       expect(mockWasmModule.export_image).toHaveBeenCalledWith(tiledHandle, 'png');
     });
+
+    test('should preserve grid selection functionality after export', async () => {
+      // Setup: Create a 2x2 grid with 3 images
+      const mockImages = [
+        { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) },
+        { name: 'image2.jpg', size: 1200, data: new Uint8Array([4, 5, 6]) },
+        { name: 'image3.jpg', size: 1500, data: new Uint8Array([7, 8, 9]) }
+      ];
+      
+      const mockHandles = mockImages.map((img, i) => ({
+        handle: `handle${i + 1}`,
+        metadata: img,
+        zoom: 100
+      }));
+      
+      imageLoader.loadedImages = mockImages;
+      imageLoader.imageHandles = mockHandles;
+      
+      // Create initial grid
+      await uiController.performGridTiling();
+      
+      // Mock the canvas manager methods
+      const mockGridInfo = { rows: 2, cols: 2, imageCount: 3 };
+      canvasManager.getCurrentImageData = jest.fn(() => ({
+        gridInfo: mockGridInfo
+      }));
+      canvasManager.displayImageFromBytes = jest.fn();
+      canvasManager.downloadImage = jest.fn();
+      
+      // Execute export
+      await uiController.exportImage();
+      
+      // Verify displayImageFromBytes was called with gridInfo preserved
+      expect(canvasManager.displayImageFromBytes).toHaveBeenCalledWith(
+        expect.any(Uint8Array),  // The exported image bytes
+        'exported-result',        // The filename/label
+        mockGridInfo             // The preserved grid info (this is what the bug fix ensures)
+      );
+      
+      // Verify grid info wasn't lost
+      expect(canvasManager.displayImageFromBytes.mock.calls[0][2]).toEqual(mockGridInfo);
+    });
   });
 
   describe('End-to-End Workflow Tests', () => {
