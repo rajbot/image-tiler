@@ -10,6 +10,7 @@ export class UIController {
         
         this.initializeElements();
         this.setupEventListeners();
+        this.setupCanvasSelection();
     }
 
     initializeElements() {
@@ -71,6 +72,26 @@ export class UIController {
         // Clear button
         this.clearButton.addEventListener('click', () => {
             this.clearAll();
+        });
+    }
+
+    setupCanvasSelection() {
+        // Set up callback for canvas image selection
+        this.canvasManager.onImageSelected = (selectedIndex) => {
+            this.selectedImageIndex = selectedIndex;
+            this.updateImageListSelection(selectedIndex);
+        };
+    }
+
+    updateImageListSelection(selectedIndex) {
+        // Remove previous selection highlights and add new one
+        const imageItems = this.imageList.querySelectorAll('.image-item');
+        imageItems.forEach((item, index) => {
+            if (selectedIndex === index) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
         });
     }
 
@@ -302,7 +323,14 @@ export class UIController {
             const exportFormat = this.exportFormat.value;
             const imageBytes = this.wasmModule.export_image(tiledHandle, exportFormat);
             
-            await this.canvasManager.displayImageFromBytes(imageBytes);
+            // Create grid info for canvas image positioning
+            const gridInfo = {
+                rows: rows,
+                cols: cols,
+                imageCount: handles.length
+            };
+            
+            await this.canvasManager.displayImageFromBytes(imageBytes, 'tiled-result', gridInfo);
             this.currentTiledImage = imageBytes;
             this.currentTiledHandle = tiledHandle;
             this.exportButton.disabled = false;
@@ -429,6 +457,10 @@ export class UIController {
             imageItem.classList.add('selected');
             this.selectedImageIndex = index;
         }
+        
+        // Update canvas selection to match
+        this.canvasManager.selectedImageIndex = this.selectedImageIndex;
+        this.canvasManager.redrawWithSelection();
     }
 
     handleDragStart(e, imageItem) {
@@ -487,6 +519,10 @@ export class UIController {
                 // Rebuild the UI list
                 this.rebuildImageList();
                 this.updateAutoPreview();
+                
+                // Update canvas selection to match the new position
+                this.canvasManager.selectedImageIndex = this.selectedImageIndex;
+                
                 this.updateStatus('Images reordered');
             }
         }

@@ -3,7 +3,12 @@ export class CanvasManager {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.currentImage = null;
+        this.selectedImageIndex = -1;
+        this.imagePositions = [];
+        this.marchingAntsOffset = 0;
         this.initializeCanvas();
+        this.setupClickHandling();
+        this.startMarchingAntsAnimation();
     }
 
     initializeCanvas() {
@@ -37,6 +42,110 @@ export class CanvasManager {
         if (this.currentImage) {
             const { imageData, scaledWidth, scaledHeight } = this.currentImage;
             this.displayImage(imageData);
+        }
+    }
+
+    setupClickHandling() {
+        this.canvas.addEventListener('click', (event) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+            const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            this.handleCanvasClick(x, y);
+        });
+    }
+
+    handleCanvasClick(x, y) {
+        // Check if click is on any image in the grid
+        for (let i = 0; i < this.imagePositions.length; i++) {
+            const pos = this.imagePositions[i];
+            if (x >= pos.x && x <= pos.x + pos.width && 
+                y >= pos.y && y <= pos.y + pos.height) {
+                
+                // Toggle selection
+                if (this.selectedImageIndex === i) {
+                    this.selectedImageIndex = -1; // Deselect
+                } else {
+                    this.selectedImageIndex = i; // Select
+                }
+                
+                // Notify UI controller of selection change
+                if (this.onImageSelected) {
+                    this.onImageSelected(this.selectedImageIndex);
+                }
+                
+                this.redrawWithSelection();
+                return;
+            }
+        }
+        
+        // Clicked outside any image, deselect
+        this.selectedImageIndex = -1;
+        if (this.onImageSelected) {
+            this.onImageSelected(-1);
+        }
+        this.redrawWithSelection();
+    }
+
+    startMarchingAntsAnimation() {
+        const animate = () => {
+            this.marchingAntsOffset += 0.5;
+            if (this.marchingAntsOffset >= 16) {
+                this.marchingAntsOffset = 0;
+            }
+            
+            if (this.selectedImageIndex >= 0) {
+                this.redrawWithSelection();
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+    }
+
+    drawMarchingAnts(x, y, width, height) {
+        const ctx = this.ctx;
+        ctx.save();
+        
+        // Set up marching ants pattern
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]);
+        ctx.lineDashOffset = -this.marchingAntsOffset;
+        
+        // Draw black outline
+        ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
+        
+        // Draw white outline (inverted pattern)
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineDashOffset = -this.marchingAntsOffset + 8;
+        ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
+        
+        ctx.restore();
+    }
+
+    redrawWithSelection() {
+        if (!this.currentImage) return;
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Redraw the current image using the stored image element
+        if (this.currentImage.image) {
+            // Use the already loaded image
+            this.ctx.drawImage(
+                this.currentImage.image,
+                this.currentImage.x,
+                this.currentImage.y,
+                this.currentImage.width,
+                this.currentImage.height
+            );
+        }
+        
+        // Draw selection outline if needed
+        if (this.selectedImageIndex >= 0 && this.imagePositions[this.selectedImageIndex]) {
+            const pos = this.imagePositions[this.selectedImageIndex];
+            this.drawMarchingAnts(pos.x, pos.y, pos.width, pos.height);
         }
     }
 
@@ -79,7 +188,7 @@ export class CanvasManager {
         });
     }
 
-    async displayImageFromBytes(imageBytes, filename = 'result') {
+    async displayImageFromBytes(imageBytes, filename = 'result', gridInfo = null) {
         return new Promise((resolve, reject) => {
             const blob = new Blob([imageBytes], { type: 'image/png' });
             const url = URL.createObjectURL(blob);
@@ -104,15 +213,20 @@ export class CanvasManager {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
                 
+                // Calculate image positions for grid selection
+                this.calculateImagePositions(gridInfo, x, y, scaledWidth, scaledHeight);
+                
                 this.currentImage = {
                     image: img,
+                    imageBytes: imageBytes,
                     scale: scale,
                     x: x,
                     y: y,
                     width: scaledWidth,
                     height: scaledHeight,
                     blob: blob,
-                    url: url
+                    url: url,
+                    gridInfo: gridInfo
                 };
                 
                 resolve();
@@ -127,6 +241,38 @@ export class CanvasManager {
         });
     }
 
+    calculateImagePositions(gridInfo, canvasX, canvasY, canvasWidth, canvasHeight) {
+        this.imagePositions = [];
+        
+        if (!gridInfo || !gridInfo.rows || !gridInfo.cols) {
+            // Single image or no grid info
+            this.imagePositions.push({
+                x: canvasX,
+                y: canvasY,
+                width: canvasWidth,
+                height: canvasHeight
+            });
+            return;
+        }
+        
+        const { rows, cols, imageCount } = gridInfo;
+        const cellWidth = canvasWidth / cols;
+        const cellHeight = canvasHeight / rows;
+        
+        // Calculate positions for each image in the grid
+        for (let i = 0; i < Math.min(imageCount, rows * cols); i++) {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            
+            this.imagePositions.push({
+                x: canvasX + col * cellWidth,
+                y: canvasY + row * cellHeight,
+                width: cellWidth,
+                height: cellHeight
+            });
+        }
+    }
+
     clear() {
         this.updateCanvasSize();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -134,6 +280,13 @@ export class CanvasManager {
             URL.revokeObjectURL(this.currentImage.url);
         }
         this.currentImage = null;
+        this.selectedImageIndex = -1;
+        this.imagePositions = [];
+        
+        // Notify UI controller of selection reset
+        if (this.onImageSelected) {
+            this.onImageSelected(-1);
+        }
     }
 
     downloadImage(filename = 'tiled-image.png') {
