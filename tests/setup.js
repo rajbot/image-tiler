@@ -39,11 +39,56 @@ const mockContext = {
   clearRect: jest.fn(),
   drawImage: jest.fn(),
   getImageData: jest.fn(),
-  putImageData: jest.fn()
+  putImageData: jest.fn(),
+  save: jest.fn(),
+  restore: jest.fn(),
+  strokeRect: jest.fn(),
+  setLineDash: jest.fn()
+};
+
+// Mock parent element with getBoundingClientRect
+const mockParentElement = {
+  getBoundingClientRect: jest.fn(() => ({
+    width: 800,
+    height: 600,
+    top: 0,
+    left: 0,
+    bottom: 600,
+    right: 800
+  }))
 };
 
 global.HTMLCanvasElement.prototype.getContext = jest.fn(() => mockContext);
 global.HTMLCanvasElement.prototype.toDataURL = jest.fn(() => 'data:image/png;base64,mock');
+global.HTMLCanvasElement.prototype.getBoundingClientRect = jest.fn(() => ({
+  width: 800,
+  height: 600,
+  top: 0,
+  left: 0,
+  bottom: 600,
+  right: 800
+}));
+
+// Mock parentElement property
+Object.defineProperty(global.HTMLCanvasElement.prototype, 'parentElement', {
+  get: jest.fn(() => mockParentElement),
+  configurable: true
+});
+
+// Mock addEventListener for canvas click handling
+global.HTMLCanvasElement.prototype.addEventListener = jest.fn();
+
+// Mock requestAnimationFrame for marching ants animation
+global.requestAnimationFrame = jest.fn(cb => setTimeout(cb, 16));
+
+// Mock window properties for responsive canvas sizing
+Object.defineProperty(global, 'window', {
+  value: {
+    innerHeight: 800,
+    addEventListener: jest.fn()
+  },
+  writable: true
+});
 
 // Mock Image constructor
 global.Image = class MockImage {

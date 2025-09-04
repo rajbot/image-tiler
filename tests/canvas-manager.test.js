@@ -9,14 +9,39 @@ describe('CanvasManager', () => {
     // Create mock canvas element
     mockContext = {
       clearRect: jest.fn(),
-      drawImage: jest.fn()
+      drawImage: jest.fn(),
+      save: jest.fn(),
+      restore: jest.fn(),
+      strokeRect: jest.fn(),
+      setLineDash: jest.fn()
+    };
+
+    const mockParentElement = {
+      getBoundingClientRect: jest.fn(() => ({
+        width: 800,
+        height: 600,
+        top: 0,
+        left: 0,
+        bottom: 600,
+        right: 800
+      }))
     };
 
     mockCanvas = {
-      width: 800,
-      height: 600,
+      width: 780,
+      height: 460,
       getContext: jest.fn(() => mockContext),
-      toDataURL: jest.fn(() => 'data:image/png;base64,mockdata')
+      toDataURL: jest.fn(() => 'data:image/png;base64,mockdata'),
+      parentElement: mockParentElement,
+      getBoundingClientRect: jest.fn(() => ({
+        width: 800,
+        height: 600,
+        top: 0,
+        left: 0,
+        bottom: 600,
+        right: 800
+      })),
+      addEventListener: jest.fn()
     };
 
     // Mock getElementById to return our mock canvas
@@ -42,7 +67,7 @@ describe('CanvasManager', () => {
 
       await canvasManager.displayImage(imageData);
 
-      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 100, 100);
+      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 780, 480);
       expect(mockContext.drawImage).toHaveBeenCalled();
     });
 
@@ -98,7 +123,7 @@ describe('CanvasManager', () => {
 
       canvasManager.clear();
 
-      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 800, 600);
+      expect(mockContext.clearRect).toHaveBeenCalledWith(0, 0, 780, 480);
       expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('test-url');
       expect(canvasManager.currentImage).toBeNull();
     });
