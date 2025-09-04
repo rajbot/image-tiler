@@ -784,8 +784,8 @@ export class UIController {
         const offsetX = parseInt(this.offsetXInput.value) || 0;
         const offsetY = parseInt(this.offsetYInput.value) || 0;
         
-        if (offsetX < -1000 || offsetX > 1000 || offsetY < -1000 || offsetY > 1000) {
-            this.updateStatus('Offset values must be between -1000 and 1000');
+        if (offsetX < -10000 || offsetX > 10000 || offsetY < -10000 || offsetY > 10000) {
+            this.updateStatus('Offset values must be between -10000 and 10000');
             const currentOffset = this.imageLoader.getImageOffset(this.selectedImageIndex);
             this.offsetXInput.value = Math.round(currentOffset.x);
             this.offsetYInput.value = Math.round(currentOffset.y);
