@@ -117,9 +117,16 @@ Exports use the original WASM image bytes (not canvas content) to ensure:
 - **GitHub CLI available**: Use `gh` tool to view and manage GitHub issues
 - **View issues**: `gh issue view <number>` to see issue details
 - **List issues**: `gh issue list` to see all open issues
-- **Create sub-issues**: Use GitHub GraphQL API through `gh api graphql` to link sub-issues to parent issues
+- **Create sub-issues**: Use GitHub GraphQL API through `gh api graphql` to create and link sub-issues
 
-Example GraphQL mutation for creating linked sub-issues:
+#### Creating and Linking Sub-Issues
+
+1. **Get repository ID** (needed for creating issues):
+```bash
+gh api repos/:owner/:repo --jq '.node_id'
+```
+
+2. **Create a new issue** (this will be the sub-issue):
 ```bash
 gh api graphql -f query='
 mutation {
@@ -130,7 +137,35 @@ mutation {
   }) {
     issue {
       number
+      url
     }
+  }
+}'
+```
+
+3. **Link as proper sub-issue** (requires getting issue node IDs first):
+```bash
+# Get node IDs for issues
+gh api graphql -f query='
+{
+  repository(owner: "OWNER", name: "REPO") {
+    parentIssue: issue(number: PARENT_NUMBER) {
+      id
+    }
+    subIssue: issue(number: SUB_NUMBER) {
+      id
+    }
+  }
+}'
+
+# Link the sub-issue to parent
+gh api graphql -H "GraphQL-Features: sub_issues" -f query='
+mutation {
+  addSubIssue(input: {
+    issueId: "PARENT_NODE_ID"
+    subIssueId: "SUB_NODE_ID"
+  }) {
+    clientMutationId
   }
 }'
 ```

@@ -330,6 +330,58 @@ pub fn resize_image(handle: &ImageHandle, width: u32, height: u32) -> ImageHandl
     ImageHandle { image: resized }
 }
 
+fn create_proxy_image_impl(handle: &ImageHandle, max_dimension: u32) -> Result<ImageHandle, String> {
+    let original_width = handle.image.width();
+    let original_height = handle.image.height();
+    
+    // Check if proxy is needed (either dimension exceeds max_dimension)
+    if original_width <= max_dimension && original_height <= max_dimension {
+        return Ok(ImageHandle { image: handle.image.clone() });
+    }
+    
+    // Calculate new dimensions maintaining aspect ratio
+    let (new_width, new_height) = if original_width > original_height {
+        // Landscape: limit width to max_dimension
+        let new_width = max_dimension;
+        let new_height = (original_height as f32 * (max_dimension as f32 / original_width as f32)) as u32;
+        (new_width, new_height.max(1))
+    } else {
+        // Portrait or square: limit height to max_dimension
+        let new_height = max_dimension;
+        let new_width = (original_width as f32 * (max_dimension as f32 / original_height as f32)) as u32;
+        (new_width.max(1), new_height)
+    };
+    
+    // Resize with high-quality filter for good preview quality
+    let proxy_image = handle.image.resize(new_width, new_height, FilterType::Lanczos3);
+    
+    Ok(ImageHandle { image: proxy_image })
+}
+
+#[wasm_bindgen]
+pub fn create_proxy_image(handle: &ImageHandle, max_dimension: u32) -> Result<ImageHandle, JsValue> {
+    let original_width = handle.image.width();
+    let original_height = handle.image.height();
+    
+    console_log!("Creating proxy image: original {}x{}, max dimension {}", 
+                 original_width, original_height, max_dimension);
+    
+    match create_proxy_image_impl(handle, max_dimension) {
+        Ok(proxy_handle) => {
+            console_log!("Proxy dimensions: {}x{}", proxy_handle.image.width(), proxy_handle.image.height());
+            Ok(proxy_handle)
+        },
+        Err(e) => Err(JsValue::from_str(&e))
+    }
+}
+
+#[wasm_bindgen]
+pub fn needs_proxy_image(handle: &ImageHandle, threshold: u32) -> bool {
+    let width = handle.image.width();
+    let height = handle.image.height();
+    width > threshold || height > threshold
+}
+
 #[wasm_bindgen]
 pub fn zoom_image(handle: &ImageHandle, zoom_percentage: u32) -> Result<ImageHandle, JsValue> {
     if zoom_percentage == 0 {
@@ -568,6 +620,44 @@ mod tests {
         // Test direct image operations that don't involve WASM bindings
         assert_eq!(test_img.width(), 100);
         assert_eq!(test_img.height(), 100);
+    }
+
+    #[test]
+    fn test_create_proxy_image_large() {
+        let large_img = create_test_image(2000, 1500, [255, 0, 0]); // Red 2000x1500
+        let handle = ImageHandle { image: large_img };
+        
+        // Should create proxy with max dimension 800
+        let proxy_result = create_proxy_image_impl(&handle, 800);
+        assert!(proxy_result.is_ok());
+        
+        let proxy = proxy_result.unwrap();
+        // Landscape image should be limited by width
+        assert_eq!(proxy.image.width(), 800);
+        assert_eq!(proxy.image.height(), 600); // 1500 * (800/2000) = 600
+    }
+
+    #[test]
+    fn test_create_proxy_image_small() {
+        let small_img = create_test_image(600, 400, [0, 255, 0]); // Green 600x400
+        let handle = ImageHandle { image: small_img };
+        
+        // Should return original (no proxy needed)
+        let proxy_result = create_proxy_image_impl(&handle, 800);
+        assert!(proxy_result.is_ok());
+        
+        let proxy = proxy_result.unwrap();
+        assert_eq!(proxy.image.width(), 600);
+        assert_eq!(proxy.image.height(), 400);
+    }
+
+    #[test]
+    fn test_needs_proxy_image() {
+        let small_img = ImageHandle { image: create_test_image(800, 600, [255, 0, 0]) };
+        let large_img = ImageHandle { image: create_test_image(1500, 1200, [0, 255, 0]) };
+        
+        assert!(!needs_proxy_image(&small_img, 1000));
+        assert!(needs_proxy_image(&large_img, 1000));
     }
 
     // Note: export functions use wasm-bindgen and can't be tested in native mode

@@ -64,7 +64,9 @@ describe('WASM Integration Tests', () => {
         'tile_images_2x2_with_blanks_2', 
         'tile_images_2x2_with_blanks_3',
         'tile_images_2x2',
-        'export_image'
+        'export_image',
+        'create_proxy_image',
+        'needs_proxy_image'
       ];
 
       // Note: These functions won't be available until after WASM init()
@@ -114,6 +116,57 @@ describe('WASM Integration Tests', () => {
       // expect(pngBytes[0]).toBe(137); // PNG signature
       // expect(jpegBytes[0]).toBe(255); // JPEG signature
     });
+  });
+});
+
+// Helper function to create test images of specific sizes
+function createTestImageFromSize(width, height) {
+  // Create a mock ImageHandle with specified dimensions
+  return {
+    width: width,
+    height: height,
+    free: jest.fn()
+  };
+}
+
+describe('WASM Proxy Image Functions', () => {
+  test.skip('should check if image needs proxy', () => {
+    if (SKIP_WASM_TESTS) return;
+    
+    const testImage = createTestImageFromSize(800, 600);
+    const largeImage = createTestImageFromSize(1500, 1200);
+    
+    expect(wasm.needs_proxy_image(testImage, 1000)).toBe(false);
+    expect(wasm.needs_proxy_image(largeImage, 1000)).toBe(true);
+    
+    testImage.free();
+    largeImage.free();
+  });
+
+  test.skip('should create proxy image for large images', () => {
+    if (SKIP_WASM_TESTS) return;
+    
+    const largeImage = createTestImageFromSize(2000, 1500);
+    const proxy = wasm.create_proxy_image(largeImage, 800);
+    
+    expect(proxy.width).toBe(800);
+    expect(proxy.height).toBe(600); // 1500 * (800/2000) = 600
+    
+    largeImage.free();
+    proxy.free();
+  });
+
+  test.skip('should return original for small images', () => {
+    if (SKIP_WASM_TESTS) return;
+    
+    const smallImage = createTestImageFromSize(600, 400);
+    const proxy = wasm.create_proxy_image(smallImage, 800);
+    
+    expect(proxy.width).toBe(600);
+    expect(proxy.height).toBe(400);
+    
+    smallImage.free();
+    proxy.free();
   });
 });
 
