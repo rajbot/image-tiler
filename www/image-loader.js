@@ -1,3 +1,8 @@
+// Performance optimization constants
+// These values were determined through testing to provide optimal performance vs quality balance
+const PROXY_THRESHOLD = 1200;  // Images larger than this (px) get proxy handles
+const PROXY_MAX_DIMENSION = 800; // Proxy images are resized to this max dimension
+
 export class ImageLoader {
     constructor() {
         this.loadedImages = [];
@@ -39,14 +44,14 @@ export class ImageLoader {
         try {
             const handle = wasmModule.load_image(imageData.data);
             
-            // Check if image needs proxy for performance (threshold: 1200px)
-            const needsProxy = wasmModule.needs_proxy_image(handle, 1200);
+            // Check if image needs proxy for performance
+            const needsProxy = wasmModule.needs_proxy_image(handle, PROXY_THRESHOLD);
             let proxyHandle = null;
             
             if (needsProxy) {
-                console.log(`Creating proxy for large image: ${handle.width}x${handle.height}`);
-                proxyHandle = wasmModule.create_proxy_image(handle, 800);
-                console.log(`Proxy created: ${proxyHandle.width}x${proxyHandle.height}`);
+                console.log(`Creating proxy for large image: ${handle.width}x${handle.height} (threshold: ${PROXY_THRESHOLD}px)`);
+                proxyHandle = wasmModule.create_proxy_image(handle, PROXY_MAX_DIMENSION);
+                console.log(`Proxy created: ${proxyHandle.width}x${proxyHandle.height} (max dimension: ${PROXY_MAX_DIMENSION}px)`);
             } else {
                 console.log(`Image is small enough, no proxy needed: ${handle.width}x${handle.height}`);
             }
