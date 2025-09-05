@@ -90,6 +90,12 @@ impl ImageBuffer {
         let resized_img = resize_preserve_aspect_ratio(img, target_width, target_height);
         let rgba_img = resized_img.to_rgba8();
         
+        // Calculate centering offsets within the target tile
+        let actual_width = rgba_img.width() as u32;
+        let actual_height = rgba_img.height() as u32;
+        let offset_x = (target_width - actual_width) / 2;
+        let offset_y = (target_height - actual_height) / 2;
+        
         // Store image position and dimensions for pattern generation
         self.image_start_x = 0;
         self.image_start_y = 0;
@@ -97,7 +103,7 @@ impl ImageBuffer {
         self.image_height = target_height;
         self.has_loaded_image = true;
         
-        // Clear the target area first
+        // Clear the entire target area with transparent pixels first
         let start_x = self.image_start_x;
         let start_y = self.image_start_y;
         
@@ -106,15 +112,20 @@ impl ImageBuffer {
                 let dst_index = ((start_y + y) * self.width as usize + (start_x + x)) * 4;
                 
                 if dst_index + 3 < self.data.len() {
-                    // Get pixel from resized image or use transparent if outside bounds
-                    if y < rgba_img.height() as usize && x < rgba_img.width() as usize {
-                        let pixel = rgba_img.get_pixel(x as u32, y as u32);
+                    // Check if we're within the centered image bounds
+                    let img_x = x as i32 - offset_x as i32;
+                    let img_y = y as i32 - offset_y as i32;
+                    
+                    if img_x >= 0 && img_y >= 0 && 
+                       img_x < actual_width as i32 && img_y < actual_height as i32 {
+                        // Copy pixel from centered image
+                        let pixel = rgba_img.get_pixel(img_x as u32, img_y as u32);
                         self.data[dst_index] = pixel[0];     // R
                         self.data[dst_index + 1] = pixel[1]; // G
                         self.data[dst_index + 2] = pixel[2]; // B
                         self.data[dst_index + 3] = pixel[3]; // A
                     } else {
-                        // Transparent pixel for areas outside the image
+                        // Transparent pixel for areas outside the centered image
                         self.data[dst_index] = 0;
                         self.data[dst_index + 1] = 0;
                         self.data[dst_index + 2] = 0;
