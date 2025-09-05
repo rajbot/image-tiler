@@ -132,6 +132,54 @@ fn fit_image_in_quadrant(image: &DynamicImage, quad_width: u32, quad_height: u32
     quadrant
 }
 
+fn fit_image_in_quadrant_with_zoom(image: &DynamicImage, quad_width: u32, quad_height: u32, zoom_percentage: u32, offset_x: i32, offset_y: i32) -> DynamicImage {
+    let img_width = image.width();
+    let img_height = image.height();
+    let zoom_factor = zoom_percentage as f32 / 100.0;
+    
+    console_log!("Fitting image {}x{} in quadrant {}x{} with zoom {}% and offset ({}, {})", 
+                 img_width, img_height, quad_width, quad_height, zoom_percentage, offset_x, offset_y);
+    
+    if zoom_percentage == 100 && offset_x == 0 && offset_y == 0 {
+        // Use original behavior for 100% zoom with no offset
+        return fit_image_in_quadrant(image, quad_width, quad_height);
+    }
+    
+    // Calculate scale to fit within quadrant while maintaining aspect ratio (base scale)
+    let scale_x = quad_width as f32 / img_width as f32;
+    let scale_y = quad_height as f32 / img_height as f32;
+    let base_scale = scale_x.min(scale_y);
+    
+    // Apply zoom on top of base scale
+    let final_scale = base_scale * zoom_factor;
+    
+    // Calculate new dimensions
+    let new_width = (img_width as f32 * final_scale) as u32;
+    let new_height = (img_height as f32 * final_scale) as u32;
+    
+    // Resize the image
+    let resized = image.resize_exact(new_width, new_height, image::imageops::FilterType::Lanczos3);
+    
+    // Create quadrant background
+    let mut quadrant = DynamicImage::new_rgb8(quad_width, quad_height);
+    
+    // Calculate center position
+    let base_x_offset = (quad_width as i32 - new_width as i32) / 2;
+    let base_y_offset = (quad_height as i32 - new_height as i32) / 2;
+    
+    // Apply user offsets
+    let final_x_offset = base_x_offset + offset_x;
+    let final_y_offset = base_y_offset + offset_y;
+    
+    console_log!("Resized to {}x{}, placing at offset ({}, {}) in quadrant", 
+                 new_width, new_height, final_x_offset, final_y_offset);
+    
+    // Overlay the resized image (this will naturally crop if image exceeds quadrant boundaries)
+    image::imageops::overlay(&mut quadrant, &resized, final_x_offset as i64, final_y_offset as i64);
+    
+    quadrant
+}
+
 #[wasm_bindgen]
 pub fn tile_images_2x2_with_blanks_1(img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
     let target_width = 800;
