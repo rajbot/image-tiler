@@ -418,7 +418,7 @@ describe('Component Integration Tests', () => {
       
       expect(document.getElementById('grid-rows').value).toBe('1');
       expect(document.getElementById('grid-cols').value).toBe('2');
-      expect(mockWasmModule.tile_images_grid_1).toHaveBeenCalledWith(1, 2, 'handle1');
+      expect(mockWasmModule.tile_images_grid_1_zoomed).toHaveBeenCalledWith(1, 2, 100, 0, 0, 'handle1');
       
       // Clear mocks for next step
       jest.clearAllMocks();
@@ -436,7 +436,7 @@ describe('Component Integration Tests', () => {
       
       expect(document.getElementById('grid-rows').value).toBe('1');
       expect(document.getElementById('grid-cols').value).toBe('2');
-      expect(mockWasmModule.tile_images_grid_2).toHaveBeenCalledWith(1, 2, 'handle1', 'handle2');
+      expect(mockWasmModule.tile_images_grid_2_zoomed).toHaveBeenCalledWith(1, 2, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2');
       
       // Clear mocks for next step
       jest.clearAllMocks();
@@ -455,25 +455,28 @@ describe('Component Integration Tests', () => {
       
       expect(document.getElementById('grid-rows').value).toBe('2');
       expect(document.getElementById('grid-cols').value).toBe('2');
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(2, 2, 'handle1', 'handle2', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(2, 2, 100, 0, 0, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2', 'handle3');
       
-      // Verify that no other grid functions were called
-      expect(mockWasmModule.tile_images_grid_1).not.toHaveBeenCalled();
-      expect(mockWasmModule.tile_images_grid_2).not.toHaveBeenCalled();
+      // Verify that no other grid functions were called (including old non-zoomed versions)
+      expect(mockWasmModule.tile_images_grid_1_zoomed).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_1_zoomed).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_2_zoomed).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_2_zoomed).not.toHaveBeenCalled();
       expect(mockWasmModule.tile_images_grid_4).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_4_zoomed).not.toHaveBeenCalled();
     });
 
     test('should test all grid function variants (1-9 images)', async () => {
       const testCases = [
-        { imageCount: 1, expectedGrid: { rows: 1, cols: 2 }, expectedFunction: 'tile_images_grid_1' },
-        { imageCount: 2, expectedGrid: { rows: 1, cols: 2 }, expectedFunction: 'tile_images_grid_2' },
-        { imageCount: 3, expectedGrid: { rows: 2, cols: 2 }, expectedFunction: 'tile_images_grid_3' },
-        { imageCount: 4, expectedGrid: { rows: 2, cols: 2 }, expectedFunction: 'tile_images_grid_4' },
-        { imageCount: 5, expectedGrid: { rows: 2, cols: 3 }, expectedFunction: 'tile_images_grid_5' },
-        { imageCount: 6, expectedGrid: { rows: 2, cols: 3 }, expectedFunction: 'tile_images_grid_6' },
-        { imageCount: 7, expectedGrid: { rows: 2, cols: 4 }, expectedFunction: 'tile_images_grid_7' },
-        { imageCount: 8, expectedGrid: { rows: 2, cols: 4 }, expectedFunction: 'tile_images_grid_8' },
-        { imageCount: 9, expectedGrid: { rows: 2, cols: 5 }, expectedFunction: 'tile_images_grid_9' }
+        { imageCount: 1, expectedGrid: { rows: 1, cols: 2 }, expectedFunction: 'tile_images_grid_1_zoomed' },
+        { imageCount: 2, expectedGrid: { rows: 1, cols: 2 }, expectedFunction: 'tile_images_grid_2_zoomed' },
+        { imageCount: 3, expectedGrid: { rows: 2, cols: 2 }, expectedFunction: 'tile_images_grid_3_zoomed' },
+        { imageCount: 4, expectedGrid: { rows: 2, cols: 2 }, expectedFunction: 'tile_images_grid_4_zoomed' },
+        { imageCount: 5, expectedGrid: { rows: 2, cols: 3 }, expectedFunction: 'tile_images_grid_5_zoomed' },
+        { imageCount: 6, expectedGrid: { rows: 2, cols: 3 }, expectedFunction: 'tile_images_grid_6_zoomed' },
+        { imageCount: 7, expectedGrid: { rows: 2, cols: 4 }, expectedFunction: 'tile_images_grid_7_zoomed' },
+        { imageCount: 8, expectedGrid: { rows: 2, cols: 4 }, expectedFunction: 'tile_images_grid_8_zoomed' },
+        { imageCount: 9, expectedGrid: { rows: 2, cols: 5 }, expectedFunction: 'tile_images_grid_9_zoomed' }
       ];
 
       for (const testCase of testCases) {
@@ -508,8 +511,11 @@ describe('Component Integration Tests', () => {
         expect(call[1]).toBe(testCase.expectedGrid.cols); // cols
         
         // Verify all handles are passed as parameters
+        // For zoomed functions: rows, cols, zoom1, offsetX1, offsetY1, zoom2, offsetX2, offsetY2, ..., handle1, handle2, ...
+        // Handles start at index 2 + (imageCount * 3)
+        const handlesStartIndex = 2 + (testCase.imageCount * 3);
         for (let i = 0; i < testCase.imageCount; i++) {
-          expect(call[i + 2]).toBe(`handle${i + 1}`);
+          expect(call[handlesStartIndex + i]).toBe(`handle${i + 1}`);
         }
       }
     });
@@ -529,7 +535,7 @@ describe('Component Integration Tests', () => {
       
       // Should use 2x2 grid with 3 images
       await uiController.updateAutoPreview();
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(2, 2, 'handle1', 'handle2', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(2, 2, 100, 0, 0, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2', 'handle3');
       
       jest.clearAllMocks();
       
@@ -539,8 +545,8 @@ describe('Component Integration Tests', () => {
       
       // Should now use 1x2 grid with 2 images
       await uiController.updateAutoPreview();
-      expect(mockWasmModule.tile_images_grid_2).toHaveBeenCalledWith(1, 2, 'handle1', 'handle3');
-      expect(mockWasmModule.tile_images_grid_3).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_2_zoomed).toHaveBeenCalledWith(1, 2, 100, 0, 0, 100, 0, 0, 'handle1', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).not.toHaveBeenCalled();
     });
   });
 
@@ -609,12 +615,12 @@ describe('Component Integration Tests', () => {
       
       await uiController.performGridTiling();
       
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(
-        2,
-        3,
-        'handle1',
-        'handle2', 
-        'handle3'
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(
+        2, 3, // rows, cols
+        100, 0, 0, // zoom1, offsetX1, offsetY1
+        100, 0, 0, // zoom2, offsetX2, offsetY2  
+        100, 0, 0, // zoom3, offsetX3, offsetY3
+        'handle1', 'handle2', 'handle3'
       );
     });
 
@@ -679,7 +685,7 @@ describe('Component Integration Tests', () => {
       
       // This should work correctly
       await uiController.updateAutoPreview();
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(2, 2, 'handle1', 'handle2', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(2, 2, 100, 0, 0, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2', 'handle3');
     });
 
     test('should catch undefined parameter passing (regression test)', async () => {
@@ -709,7 +715,7 @@ describe('Component Integration Tests', () => {
       await expect(uiController.updateAutoPreview()).resolves.not.toThrow();
       
       // Verify all 3 handles were passed correctly
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(2, 2, 'handle1', 'handle2', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(2, 2, 100, 0, 0, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2', 'handle3');
       
       // Restore original mock
       mockWasmModule.tile_images_grid_3 = originalMock;
@@ -729,7 +735,7 @@ describe('Component Integration Tests', () => {
       await uiController.performGridTiling();
       
       // Should not call any WASM functions with invalid dimensions
-      expect(mockWasmModule.tile_images_grid_1).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_1_zoomed).not.toHaveBeenCalled();
     });
 
     test('should handle maximum image count (9 images)', async () => {
@@ -747,8 +753,17 @@ describe('Component Integration Tests', () => {
       await uiController.updateAutoPreview();
       
       // Should call tile_images_grid_9 with all 9 handles
-      expect(mockWasmModule.tile_images_grid_9).toHaveBeenCalledWith(
+      expect(mockWasmModule.tile_images_grid_9_zoomed).toHaveBeenCalledWith(
         2, 5, // 2x5 grid for 9 images
+        100, 0, 0, // zoom1, offsetX1, offsetY1
+        100, 0, 0, // zoom2, offsetX2, offsetY2
+        100, 0, 0, // zoom3, offsetX3, offsetY3
+        100, 0, 0, // zoom4, offsetX4, offsetY4
+        100, 0, 0, // zoom5, offsetX5, offsetY5
+        100, 0, 0, // zoom6, offsetX6, offsetY6
+        100, 0, 0, // zoom7, offsetX7, offsetY7
+        100, 0, 0, // zoom8, offsetX8, offsetY8
+        100, 0, 0, // zoom9, offsetX9, offsetY9
         'handle1', 'handle2', 'handle3', 'handle4', 'handle5', 'handle6', 'handle7', 'handle8', 'handle9'
       );
     });
@@ -806,7 +821,7 @@ describe('Component Integration Tests', () => {
       await uiController.updateAutoPreview();
       
       // Verify 2 images in 1x2 grid
-      expect(mockWasmModule.tile_images_grid_2).toHaveBeenCalledWith(1, 2, 'handle1', 'handle2');
+      expect(mockWasmModule.tile_images_grid_2_zoomed).toHaveBeenCalledWith(1, 2, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2');
       
       jest.clearAllMocks();
       
@@ -821,33 +836,33 @@ describe('Component Integration Tests', () => {
       await uiController.updateAutoPreview();
       
       // The key regression test: verify all 3 handles are passed correctly
-      expect(mockWasmModule.tile_images_grid_3).toHaveBeenCalledWith(2, 2, 'handle1', 'handle2', 'handle3');
+      expect(mockWasmModule.tile_images_grid_3_zoomed).toHaveBeenCalledWith(2, 2, 100, 0, 0, 100, 0, 0, 100, 0, 0, 'handle1', 'handle2', 'handle3');
       
-      // Verify that exactly 3 parameters (plus rows/cols) were passed
-      const call = mockWasmModule.tile_images_grid_3.mock.calls[0];
-      expect(call).toHaveLength(5); // rows, cols, img1, img2, img3
-      expect(call[2]).toBe('handle1'); // img1
-      expect(call[3]).toBe('handle2'); // img2 (this was getting lost in the bug)
-      expect(call[4]).toBe('handle3'); // img3
+      // Verify that exactly 3 image handles (plus rows/cols and zoom params) were passed
+      const call = mockWasmModule.tile_images_grid_3_zoomed.mock.calls[0];
+      expect(call).toHaveLength(14); // rows, cols, zoom1, offsetX1, offsetY1, zoom2, offsetX2, offsetY2, zoom3, offsetX3, offsetY3, img1, img2, img3
+      expect(call[11]).toBe('handle1'); // img1
+      expect(call[12]).toBe('handle2'); // img2 (this was getting lost in the bug)
+      expect(call[13]).toBe('handle3'); // img3
       
       // Verify no other grid functions were called
-      expect(mockWasmModule.tile_images_grid_2).not.toHaveBeenCalled();
-      expect(mockWasmModule.tile_images_grid_1).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_2_zoomed).not.toHaveBeenCalled();
+      expect(mockWasmModule.tile_images_grid_1_zoomed).not.toHaveBeenCalled();
     });
 
     test('REGRESSION: function selection logic works correctly', async () => {
       // Test that the switch statement in performGridTiling selects the right function
       
       const testCases = [
-        { imageCount: 1, expectedFunction: 'tile_images_grid_1' },
-        { imageCount: 2, expectedFunction: 'tile_images_grid_2' },
-        { imageCount: 3, expectedFunction: 'tile_images_grid_3' }, // The problematic case
-        { imageCount: 4, expectedFunction: 'tile_images_grid_4' },
-        { imageCount: 5, expectedFunction: 'tile_images_grid_5' },
-        { imageCount: 6, expectedFunction: 'tile_images_grid_6' },
-        { imageCount: 7, expectedFunction: 'tile_images_grid_7' },
-        { imageCount: 8, expectedFunction: 'tile_images_grid_8' },
-        { imageCount: 9, expectedFunction: 'tile_images_grid_9' }
+        { imageCount: 1, expectedFunction: 'tile_images_grid_1_zoomed' },
+        { imageCount: 2, expectedFunction: 'tile_images_grid_2_zoomed' },
+        { imageCount: 3, expectedFunction: 'tile_images_grid_3_zoomed' }, // The problematic case
+        { imageCount: 4, expectedFunction: 'tile_images_grid_4_zoomed' },
+        { imageCount: 5, expectedFunction: 'tile_images_grid_5_zoomed' },
+        { imageCount: 6, expectedFunction: 'tile_images_grid_6_zoomed' },
+        { imageCount: 7, expectedFunction: 'tile_images_grid_7_zoomed' },
+        { imageCount: 8, expectedFunction: 'tile_images_grid_8_zoomed' },
+        { imageCount: 9, expectedFunction: 'tile_images_grid_9_zoomed' }
       ];
       
       for (const testCase of testCases) {
