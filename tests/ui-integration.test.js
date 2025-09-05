@@ -62,6 +62,26 @@ const mockWasmModule = {
   tile_images_grid_7: createValidatingMockFunction(9, 'tile_images_grid_7'), // rows, cols, img1-img7
   tile_images_grid_8: createValidatingMockFunction(10, 'tile_images_grid_8'), // rows, cols, img1-img8
   tile_images_grid_9: createValidatingMockFunction(11, 'tile_images_grid_9'), // rows, cols, img1-img9
+  // Zoomed tiling functions (auto-sized tiles)
+  tile_images_grid_1_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_2_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_3_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_4_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_5_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_6_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_7_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_8_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_9_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  // Custom zoomed tiling functions
+  tile_images_grid_1_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_2_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_3_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_4_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_5_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_6_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_7_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_8_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
+  tile_images_grid_9_custom_zoomed: jest.fn(() => ({ width: 800, height: 800 })),
   resize_image: jest.fn((handle, width, height) => ({ width, height })),
   export_image: jest.fn(() => new Uint8Array([1, 2, 3, 4])),
   zoom_image: jest.fn((handle, zoomPercentage) => ({ width: handle.width, height: handle.height })),
@@ -934,7 +954,7 @@ describe('Component Integration Tests', () => {
     });
 
     describe('UI Controller Offset Integration', () => {
-      test('should apply offset values and call zoom_and_pan_image', async () => {
+      test('should apply offset values and call zoomed tiling function', async () => {
         // Setup mock images with offset values
         const mockImages = [
           { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) },
@@ -951,16 +971,19 @@ describe('Component Integration Tests', () => {
         
         await uiController.performGridTiling();
         
-        // Verify zoom_and_pan_image was called with correct parameters
-        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle1', 150, 25, -10);
-        // Handle 2 has all default values so zoom_and_pan_image should NOT be called for it
-        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledTimes(1);
+        // Verify zoom_and_pan_image is no longer called (new approach handles zoom during tiling)
+        expect(mockWasmModule.zoom_and_pan_image).not.toHaveBeenCalled();
         
-        // Verify the grid function was called with the transformed handles
-        expect(mockWasmModule.tile_images_grid_2).toHaveBeenCalled();
+        // Verify the zoomed tiling function was called with zoom and offset parameters
+        expect(mockWasmModule.tile_images_grid_2_zoomed).toHaveBeenCalledWith(
+          1, 2, // rows, cols
+          150, 25, -10, // zoom1, offsetX1, offsetY1
+          100, 0, 0,    // zoom2, offsetX2, offsetY2
+          'handle1', 'handle2' // handles
+        );
       });
 
-      test('should skip zoom_and_pan_image for default values', async () => {
+      test('should use zoomed tiling function even for default values', async () => {
         // Setup mock images with all default values
         const mockImages = [
           { name: 'image1.jpg', size: 1000, data: new Uint8Array([1, 2, 3]) }
@@ -975,11 +998,15 @@ describe('Component Integration Tests', () => {
         
         await uiController.performGridTiling();
         
-        // Verify zoom_and_pan_image was NOT called for default values
+        // Verify zoom_and_pan_image is never called (new approach)
         expect(mockWasmModule.zoom_and_pan_image).not.toHaveBeenCalled();
         
-        // Verify the grid function was called with the original handle
-        expect(mockWasmModule.tile_images_grid_1).toHaveBeenCalledWith(1, 2, 'handle1');
+        // Verify the zoomed tiling function was called with default values
+        expect(mockWasmModule.tile_images_grid_1_zoomed).toHaveBeenCalledWith(
+          1, 2, // rows, cols
+          100, 0, 0, // zoom1, offsetX1, offsetY1 (default values)
+          'handle1' // handle
+        );
       });
 
       test('should update offset inputs when image is selected', () => {
@@ -1035,8 +1062,8 @@ describe('Component Integration Tests', () => {
         const appliedOffset = imageLoader.getImageOffset(0);
         expect(appliedOffset).toEqual({ x: 75, y: -40 });
         
-        // Verify performGridTiling was called (to update the preview)
-        expect(mockWasmModule.tile_images_grid_1).toHaveBeenCalled();
+        // Verify performGridTiling was called with new zoomed function (to update the preview)
+        expect(mockWasmModule.tile_images_grid_1_zoomed).toHaveBeenCalled();
       });
 
       test('should reset offset values', () => {
@@ -1184,9 +1211,14 @@ describe('Component Integration Tests', () => {
         // Create initial grid with zoom and pan
         await uiController.performGridTiling();
         
-        // Verify zoom_and_pan_image was called for both images
-        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle1', 125, 15, -5);
-        expect(mockWasmModule.zoom_and_pan_image).toHaveBeenCalledWith('handle2', 200, -30, 20);
+        // Verify the new zoomed tiling function was called instead of individual zoom_and_pan_image
+        expect(mockWasmModule.zoom_and_pan_image).not.toHaveBeenCalled();
+        expect(mockWasmModule.tile_images_grid_2_zoomed).toHaveBeenCalledWith(
+          1, 2, // rows, cols
+          125, 15, -5,  // zoom1, offsetX1, offsetY1
+          200, -30, 20, // zoom2, offsetX2, offsetY2
+          'handle1', 'handle2' // handles
+        );
         
         // Mock canvas manager for export
         const mockGridInfo = { rows: 1, cols: 2, imageCount: 2 };
