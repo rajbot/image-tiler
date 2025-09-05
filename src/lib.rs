@@ -361,6 +361,98 @@ pub fn tile_images_grid_9_custom(rows: u32, cols: u32, tile_width: u32, tile_hei
     tile_images_grid_custom_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9])
 }
 
+// Zoomed grid functions (auto-sized tiles)
+#[wasm_bindgen]  
+pub fn tile_images_grid_1_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1], vec![zoom1], vec![offset_x1], vec![offset_y1])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_2_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2], vec![zoom1, zoom2], vec![offset_x1, offset_x2], vec![offset_y1, offset_y2])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_3_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3], vec![zoom1, zoom2, zoom3], vec![offset_x1, offset_x2, offset_x3], vec![offset_y1, offset_y2, offset_y3])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_4_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4], vec![zoom1, zoom2, zoom3, zoom4], vec![offset_x1, offset_x2, offset_x3, offset_x4], vec![offset_y1, offset_y2, offset_y3, offset_y4])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_5_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4, img5], vec![zoom1, zoom2, zoom3, zoom4, zoom5], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_6_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_7_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_8_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, zoom8: u32, offset_x8: i32, offset_y8: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7, img8], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7, zoom8], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7, offset_x8], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7, offset_y8])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_9_zoomed(rows: u32, cols: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, zoom8: u32, offset_x8: i32, offset_y8: i32, zoom9: u32, offset_x9: i32, offset_y9: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle, img9: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_zoomed_impl(rows, cols, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7, zoom8, zoom9], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7, offset_x8, offset_x9], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7, offset_y8, offset_y9])
+}
+
+// Custom zoomed grid functions (custom tile sizes + zoom)
+#[wasm_bindgen]  
+pub fn tile_images_grid_1_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, img1: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1], vec![zoom1], vec![offset_x1], vec![offset_y1])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_2_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, img1: &ImageHandle, img2: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2], vec![zoom1, zoom2], vec![offset_x1, offset_x2], vec![offset_y1, offset_y2])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_3_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3], vec![zoom1, zoom2, zoom3], vec![offset_x1, offset_x2, offset_x3], vec![offset_y1, offset_y2, offset_y3])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_4_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4], vec![zoom1, zoom2, zoom3, zoom4], vec![offset_x1, offset_x2, offset_x3, offset_x4], vec![offset_y1, offset_y2, offset_y3, offset_y4])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_5_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5], vec![zoom1, zoom2, zoom3, zoom4, zoom5], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_6_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_7_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_8_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, zoom8: u32, offset_x8: i32, offset_y8: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7, img8], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7, zoom8], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7, offset_x8], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7, offset_y8])
+}
+
+#[wasm_bindgen]  
+pub fn tile_images_grid_9_custom_zoomed(rows: u32, cols: u32, tile_width: u32, tile_height: u32, zoom1: u32, offset_x1: i32, offset_y1: i32, zoom2: u32, offset_x2: i32, offset_y2: i32, zoom3: u32, offset_x3: i32, offset_y3: i32, zoom4: u32, offset_x4: i32, offset_y4: i32, zoom5: u32, offset_x5: i32, offset_y5: i32, zoom6: u32, offset_x6: i32, offset_y6: i32, zoom7: u32, offset_x7: i32, offset_y7: i32, zoom8: u32, offset_x8: i32, offset_y8: i32, zoom9: u32, offset_x9: i32, offset_y9: i32, img1: &ImageHandle, img2: &ImageHandle, img3: &ImageHandle, img4: &ImageHandle, img5: &ImageHandle, img6: &ImageHandle, img7: &ImageHandle, img8: &ImageHandle, img9: &ImageHandle) -> Result<ImageHandle, JsValue> {
+    tile_images_grid_custom_zoomed_impl(rows, cols, tile_width, tile_height, vec![img1, img2, img3, img4, img5, img6, img7, img8, img9], vec![zoom1, zoom2, zoom3, zoom4, zoom5, zoom6, zoom7, zoom8, zoom9], vec![offset_x1, offset_x2, offset_x3, offset_x4, offset_x5, offset_x6, offset_x7, offset_x8, offset_x9], vec![offset_y1, offset_y2, offset_y3, offset_y4, offset_y5, offset_y6, offset_y7, offset_y8, offset_y9])
+}
+
 fn tile_images_grid_impl(rows: u32, cols: u32, images: Vec<&ImageHandle>) -> Result<ImageHandle, JsValue> {
     if rows == 0 || cols == 0 {
         return Err(JsValue::from_str("Rows and columns must be greater than 0"));
@@ -450,6 +542,116 @@ fn tile_images_grid_custom_impl(rows: u32, cols: u32, tile_width: u32, tile_heig
                     index, row, col, col * tile_width, row * tile_height);
         
         let fitted_image = fit_image_in_quadrant(&img_handle.image, tile_width, tile_height);
+        
+        // Calculate position to center the fitted image in the cell
+        let x_offset = col * tile_width;
+        let y_offset = row * tile_height;
+        
+        // Overlay the fitted image
+        image::imageops::overlay(&mut result, &fitted_image, x_offset as i64, y_offset as i64);
+    }
+
+    Ok(ImageHandle { image: DynamicImage::ImageRgba8(result) })
+}
+
+fn tile_images_grid_zoomed_impl(rows: u32, cols: u32, images: Vec<&ImageHandle>, zoom_levels: Vec<u32>, offset_x_levels: Vec<i32>, offset_y_levels: Vec<i32>) -> Result<ImageHandle, JsValue> {
+    if rows == 0 || cols == 0 {
+        return Err(JsValue::from_str("Rows and columns must be greater than 0"));
+    }
+
+    console_log!("Grid placement with zoom: {}x{} grid, {} images", rows, cols, images.len());
+
+    let grid_capacity = (rows * cols) as usize;
+
+    // Calculate dimensions for each cell based on the largest image
+    let mut max_width = 0;
+    let mut max_height = 0;
+    
+    for img in &images {
+        if img.image.width() > max_width {
+            max_width = img.image.width();
+        }
+        if img.image.height() > max_height {
+            max_height = img.image.height();
+        }
+    }
+
+    let cell_width = max_width;
+    let cell_height = max_height;
+    let final_width = cell_width * cols;
+    let final_height = cell_height * rows;
+
+    // Create result image with black background
+    let mut result = RgbaImage::new(final_width, final_height);
+    
+    // Fill with black
+    for pixel in result.pixels_mut() {
+        *pixel = image::Rgba([0, 0, 0, 255]);
+    }
+
+    // Place images in grid
+    for (index, img_handle) in images.iter().enumerate().take(grid_capacity) {
+        let row = (index as u32) / cols;
+        let col = (index as u32) % cols;
+        
+        // Get zoom and offset for this image (default to 100% zoom, no offset if not provided)
+        let zoom = zoom_levels.get(index).copied().unwrap_or(100);
+        let offset_x = offset_x_levels.get(index).copied().unwrap_or(0);
+        let offset_y = offset_y_levels.get(index).copied().unwrap_or(0);
+        
+        console_log!("Image {}: placing at grid position ({}, {}) with zoom {}% and offset ({}, {}) -> pixel offset ({}, {})", 
+                    index, row, col, zoom, offset_x, offset_y, col * cell_width, row * cell_height);
+        
+        let fitted_image = fit_image_in_quadrant_with_zoom(&img_handle.image, cell_width, cell_height, zoom, offset_x, offset_y);
+        
+        // Calculate position to center the fitted image in the cell
+        let x_offset = col * cell_width;
+        let y_offset = row * cell_height;
+        
+        // Overlay the fitted image
+        image::imageops::overlay(&mut result, &fitted_image, x_offset as i64, y_offset as i64);
+    }
+
+    Ok(ImageHandle { image: DynamicImage::ImageRgba8(result) })
+}
+
+fn tile_images_grid_custom_zoomed_impl(rows: u32, cols: u32, tile_width: u32, tile_height: u32, images: Vec<&ImageHandle>, zoom_levels: Vec<u32>, offset_x_levels: Vec<i32>, offset_y_levels: Vec<i32>) -> Result<ImageHandle, JsValue> {
+    if rows == 0 || cols == 0 {
+        return Err(JsValue::from_str("Rows and columns must be greater than 0"));
+    }
+    
+    if tile_width == 0 || tile_height == 0 {
+        return Err(JsValue::from_str("Tile dimensions must be greater than 0"));
+    }
+
+    console_log!("Grid placement with custom tiles and zoom: {}x{} grid, {}x{} tile size, {} images", rows, cols, tile_width, tile_height, images.len());
+
+    let grid_capacity = (rows * cols) as usize;
+    let final_width = tile_width * cols;
+    let final_height = tile_height * rows;
+
+    // Create result image with black background
+    let mut result = RgbaImage::new(final_width, final_height);
+    
+    // Fill with black
+    for pixel in result.pixels_mut() {
+        *pixel = image::Rgba([0, 0, 0, 255]);
+    }
+
+    // Place images in grid using custom tile dimensions and zoom
+    for (index, img_handle) in images.iter().enumerate().take(grid_capacity) {
+        let row = (index as u32) / cols;
+        let col = (index as u32) % cols;
+        
+        // Get zoom and offset for this image (default to 100% zoom, no offset if not provided)
+        let zoom = zoom_levels.get(index).copied().unwrap_or(100);
+        let offset_x = offset_x_levels.get(index).copied().unwrap_or(0);
+        let offset_y = offset_y_levels.get(index).copied().unwrap_or(0);
+        
+        console_log!("Image {}: placing at grid position ({}, {}) with zoom {}% and offset ({}, {}) -> pixel offset ({}, {})", 
+                    index, row, col, zoom, offset_x, offset_y, col * tile_width, row * tile_height);
+        
+        let fitted_image = fit_image_in_quadrant_with_zoom(&img_handle.image, tile_width, tile_height, zoom, offset_x, offset_y);
         
         // Calculate position to center the fitted image in the cell
         let x_offset = col * tile_width;
