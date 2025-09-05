@@ -447,8 +447,13 @@ export class UIController {
             const proxyInfo = useProxy ? ' (using proxy images for performance)' : ' (using original images for quality)';
             console.log(`Performing grid tiling: ${imageHandleData.length} images in ${rows}x${cols} grid${proxyInfo}`);
             
-            // Apply individual zoom and pan to each image before tiling
-            const zoomedHandles = imageHandleData.map((item, index) => {
+            // Collect handles and zoom/offset data for new zoomed tiling functions
+            const handles = [];
+            const zoomLevels = [];
+            const offsetXLevels = [];
+            const offsetYLevels = [];
+            
+            imageHandleData.forEach((item, index) => {
                 const zoom = item.zoom || 100;
                 const offsetX = item.offsetX || 0;
                 const offsetY = item.offsetY || 0;
@@ -478,13 +483,12 @@ export class UIController {
                     }
                 }
                 
-                console.log(`Image ${index}: applying ${zoom}% zoom with offset (${scaledOffsetX}, ${scaledOffsetY}) to ${handleType} handle`);
+                console.log(`Image ${index}: using ${zoom}% zoom with offset (${scaledOffsetX}, ${scaledOffsetY}) on ${handleType} handle`);
                 
-                if (zoom === 100 && scaledOffsetX === 0 && scaledOffsetY === 0) {
-                    return baseHandle;
-                } else {
-                    return this.wasmModule.zoom_and_pan_image(baseHandle, zoom, scaledOffsetX, scaledOffsetY);
-                }
+                handles.push(baseHandle);
+                zoomLevels.push(zoom);
+                offsetXLevels.push(Math.round(scaledOffsetX));
+                offsetYLevels.push(Math.round(scaledOffsetY));
             });
             
             // Call the appropriate function based on number of images and custom tile dimensions
@@ -500,69 +504,69 @@ export class UIController {
                 const tileHeight = this.customTileDimensions.height;
                 console.log(`Using custom tile dimensions: ${tileWidth}×${tileHeight}`);
                 
-                switch (zoomedHandles.length) {
+                switch (handles.length) {
                     case 1:
-                        tiledHandle = this.wasmModule.tile_images_grid_1_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0]);
+                        tiledHandle = this.wasmModule.tile_images_grid_1_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], handles[0]);
                         break;
                     case 2:
-                        tiledHandle = this.wasmModule.tile_images_grid_2_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1]);
+                        tiledHandle = this.wasmModule.tile_images_grid_2_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], handles[0], handles[1]);
                         break;
                     case 3:
-                        tiledHandle = this.wasmModule.tile_images_grid_3_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
+                        tiledHandle = this.wasmModule.tile_images_grid_3_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], handles[0], handles[1], handles[2]);
                         break;
                     case 4:
-                        tiledHandle = this.wasmModule.tile_images_grid_4_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
+                        tiledHandle = this.wasmModule.tile_images_grid_4_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], handles[0], handles[1], handles[2], handles[3]);
                         break;
                     case 5:
-                        tiledHandle = this.wasmModule.tile_images_grid_5_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
+                        tiledHandle = this.wasmModule.tile_images_grid_5_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], handles[0], handles[1], handles[2], handles[3], handles[4]);
                         break;
                     case 6:
-                        tiledHandle = this.wasmModule.tile_images_grid_6_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
+                        tiledHandle = this.wasmModule.tile_images_grid_6_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5]);
                         break;
                     case 7:
-                        tiledHandle = this.wasmModule.tile_images_grid_7_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
+                        tiledHandle = this.wasmModule.tile_images_grid_7_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6]);
                         break;
                     case 8:
-                        tiledHandle = this.wasmModule.tile_images_grid_8_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
+                        tiledHandle = this.wasmModule.tile_images_grid_8_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], zoomLevels[7], offsetXLevels[7], offsetYLevels[7], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7]);
                         break;
                     case 9:
-                        tiledHandle = this.wasmModule.tile_images_grid_9_custom(rows, cols, tileWidth, tileHeight, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
+                        tiledHandle = this.wasmModule.tile_images_grid_9_custom_zoomed(rows, cols, tileWidth, tileHeight, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], zoomLevels[7], offsetXLevels[7], offsetYLevels[7], zoomLevels[8], offsetXLevels[8], offsetYLevels[8], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7], handles[8]);
                         break;
                     default:
-                        throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
+                        throw new Error(`Unsupported number of images: ${handles.length}. Maximum supported is 9 images.`);
                 }
             } else {
                 // Use automatic tile sizing based on largest image
-                switch (zoomedHandles.length) {
+                switch (handles.length) {
                     case 1:
-                        tiledHandle = this.wasmModule.tile_images_grid_1(rows, cols, zoomedHandles[0]);
+                        tiledHandle = this.wasmModule.tile_images_grid_1_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], handles[0]);
                         break;
                     case 2:
-                        tiledHandle = this.wasmModule.tile_images_grid_2(rows, cols, zoomedHandles[0], zoomedHandles[1]);
+                        tiledHandle = this.wasmModule.tile_images_grid_2_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], handles[0], handles[1]);
                         break;
                     case 3:
-                        tiledHandle = this.wasmModule.tile_images_grid_3(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2]);
+                        tiledHandle = this.wasmModule.tile_images_grid_3_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], handles[0], handles[1], handles[2]);
                         break;
                     case 4:
-                        tiledHandle = this.wasmModule.tile_images_grid_4(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3]);
+                        tiledHandle = this.wasmModule.tile_images_grid_4_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], handles[0], handles[1], handles[2], handles[3]);
                         break;
                     case 5:
-                        tiledHandle = this.wasmModule.tile_images_grid_5(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4]);
+                        tiledHandle = this.wasmModule.tile_images_grid_5_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], handles[0], handles[1], handles[2], handles[3], handles[4]);
                         break;
                     case 6:
-                        tiledHandle = this.wasmModule.tile_images_grid_6(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5]);
+                        tiledHandle = this.wasmModule.tile_images_grid_6_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5]);
                         break;
                     case 7:
-                        tiledHandle = this.wasmModule.tile_images_grid_7(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6]);
+                        tiledHandle = this.wasmModule.tile_images_grid_7_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6]);
                         break;
                     case 8:
-                        tiledHandle = this.wasmModule.tile_images_grid_8(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7]);
+                        tiledHandle = this.wasmModule.tile_images_grid_8_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], zoomLevels[7], offsetXLevels[7], offsetYLevels[7], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7]);
                         break;
                     case 9:
-                        tiledHandle = this.wasmModule.tile_images_grid_9(rows, cols, zoomedHandles[0], zoomedHandles[1], zoomedHandles[2], zoomedHandles[3], zoomedHandles[4], zoomedHandles[5], zoomedHandles[6], zoomedHandles[7], zoomedHandles[8]);
+                        tiledHandle = this.wasmModule.tile_images_grid_9_zoomed(rows, cols, zoomLevels[0], offsetXLevels[0], offsetYLevels[0], zoomLevels[1], offsetXLevels[1], offsetYLevels[1], zoomLevels[2], offsetXLevels[2], offsetYLevels[2], zoomLevels[3], offsetXLevels[3], offsetYLevels[3], zoomLevels[4], offsetXLevels[4], offsetYLevels[4], zoomLevels[5], offsetXLevels[5], offsetYLevels[5], zoomLevels[6], offsetXLevels[6], offsetYLevels[6], zoomLevels[7], offsetXLevels[7], offsetYLevels[7], zoomLevels[8], offsetXLevels[8], offsetYLevels[8], handles[0], handles[1], handles[2], handles[3], handles[4], handles[5], handles[6], handles[7], handles[8]);
                         break;
                     default:
-                        throw new Error(`Unsupported number of images: ${zoomedHandles.length}. Maximum supported is 9 images.`);
+                        throw new Error(`Unsupported number of images: ${handles.length}. Maximum supported is 9 images.`);
                 }
             }
             const exportFormat = this.exportFormat.value;
