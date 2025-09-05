@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Fast Image Tiler - Rust WebAssembly Canvas Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: white;
+        }
+        .stats {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .file-input {
+            display: none;
+        }
+        .image-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .image-status {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fast Image Tiler - Rust WebAssembly Demo</h1>
+        <div class="image-controls">
+            <button id="load-image-btn">Load Image</button>
+            <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
+            <span id="image-status" class="image-status">No image loaded</span>
+        </div>
+        <div class="stats">
+            <div id="fps">FPS: 0</div>
+            <div id="frame-count">Frame: 0</div>
+        </div>
+        <canvas id="canvas" width="800" height="800"></canvas>
+        <div class="controls">
+            <button id="start-btn">Start</button>
+            <button id="stop-btn" disabled>Stop</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { ImageBuffer } from './pkg/fast_image_tiler.js';
+
+        class RenderLoop {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.fpsElement = document.getElementById('fps');
+                this.frameCountElement = document.getElementById('frame-count');
+                this.startBtn = document.getElementById('start-btn');
+                this.stopBtn = document.getElementById('stop-btn');
+                this.loadImageBtn = document.getElementById('load-image-btn');
+                this.fileInput = document.getElementById('file-input');
+                this.imageStatus = document.getElementById('image-status');
+                
+                this.running = false;
+                this.frameCount = 0;
+                this.lastTime = 0;
+                this.fps = 0;
+                this.frameTimeBuffer = [];
+                this.maxFrameTimeBuffer = 60;
+                this.hasLoadedImage = false;
+                
+                this.imageBuffer = null;
+                this.wasmModule = null;
+                
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.stopBtn.addEventListener('click', () => this.stop());
+                this.loadImageBtn.addEventListener('click', () => this.fileInput.click());
+                this.fileInput.addEventListener('change', (e) => this.handleImageLoad(e));
+            }
+
+            async handleImageLoad(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!file.type.match(/^image\/(jpeg|png)$/)) {
+                    alert('Please select a JPEG or PNG image.');
+                    return;
+                }
+                
+                try {
+                    this.imageStatus.textContent = 'Loading image...';
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    // Load image into Rust and resize to 400x400
+                    await this.imageBuffer.load_image_from_bytes(uint8Array, 400, 400);
+                    
+                    this.hasLoadedImage = true;
+                    this.imageStatus.textContent = `Loaded: ${file.name} (400x400)`;
+                    
+                    console.log('Image loaded and processed successfully');
+                } catch (error) {
+                    console.error('Failed to load image:', error);
+                    this.imageStatus.textContent = 'Failed to load image';
+                    alert('Failed to load image: ' + error.message);
+                }
+            }
+
+            async initialize() {
+                try {
+                    this.wasmModule = await init();
+                    this.imageBuffer = new ImageBuffer(800, 800);
+                    console.log('WebAssembly module loaded successfully');
+                } catch (error) {
+                    console.error('Failed to load WebAssembly module:', error);
+                    throw error;
+                }
+            }
+
+            start() {
+                if (this.running) return;
+                
+                this.running = true;
+                this.startBtn.disabled = true;
+                this.stopBtn.disabled = false;
+                this.frameCount = 0;
+                this.lastTime = performance.now();
+                this.frameTimeBuffer = [];
+                
+                this.render();
+            }
+
+            stop() {
+                this.running = false;
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+            }
+
+            calculateFPS(currentTime) {
+                if (this.lastTime === 0) {
+                    this.lastTime = currentTime;
+                    return;
+                }
+                
+                const deltaTime = currentTime - this.lastTime;
+                this.frameTimeBuffer.push(deltaTime);
+                
+                if (this.frameTimeBuffer.length > this.maxFrameTimeBuffer) {
+                    this.frameTimeBuffer.shift();
+                }
+                
+                const averageDelta = this.frameTimeBuffer.reduce((a, b) => a + b, 0) / this.frameTimeBuffer.length;
+                this.fps = Math.round(1000 / averageDelta);
+                
+                this.lastTime = currentTime;
+            }
+
+            render(currentTime = performance.now()) {
+                if (!this.running) return;
+
+                this.calculateFPS(currentTime);
+                
+                // Generate new pattern in Rust
+                this.imageBuffer.generate_pattern(this.frameCount);
+                
+                // Get WASM memory buffer
+                const wasmMemory = this.wasmModule.memory;
+                const dataPtr = this.imageBuffer.data_ptr();
+                const dataLen = this.imageBuffer.data_len();
+                
+                // Create ImageData from WASM memory
+                const uint8Array = new Uint8ClampedArray(wasmMemory.buffer, dataPtr, dataLen);
+                const imageData = new ImageData(uint8Array, 800, 800);
+                
+                // Draw to canvas
+                this.ctx.putImageData(imageData, 0, 0);
+                
+                // Update stats
+                this.frameCount++;
+                this.fpsElement.textContent = `FPS: ${this.fps}`;
+                this.frameCountElement.textContent = `Frame: ${this.frameCount}`;
+                
+                // Continue the loop
+                requestAnimationFrame((time) => this.render(time));
+            }
+        }
+
+        // Initialize and start the application
+        async function main() {
+            try {
+                const renderLoop = new RenderLoop();
+                await renderLoop.initialize();
+                console.log('Application ready. Click Start to begin rendering.');
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                document.querySelector('.container').innerHTML = 
+                    '<h1>Error</h1><p>Failed to load WebAssembly module. Please check the console for details.</p>';
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
