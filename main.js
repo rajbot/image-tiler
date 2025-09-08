@@ -11,6 +11,7 @@ class RenderLoop {
         this.loadImageBtn = document.getElementById('load-image-btn');
         this.fileInput = document.getElementById('file-input');
         this.imageStatus = document.getElementById('image-status');
+        this.tileList = document.getElementById('tile-list');
         
         this.running = false;
         this.frameCount = 0;
@@ -75,6 +76,9 @@ class RenderLoop {
             const tileHeight = this.imageBuffer.tile_height;
             this.imageStatus.textContent = `Loaded: ${file.name} (${tileWidth}x${tileHeight})`;
             
+            // Update tile list display
+            this.updateTileList();
+            
             // Render immediately to show the loaded image
             this.renderSingleFrame();
             
@@ -90,6 +94,9 @@ class RenderLoop {
         try {
             this.wasmModule = await init();
             this.imageBuffer = new ImageBuffer(400, 400, 2, 2);
+            
+            // Initialize tile list display
+            this.updateTileList();
             
             // Render initial frame to show default pattern
             this.renderSingleFrame();
@@ -150,6 +157,61 @@ class RenderLoop {
             console.error('Failed to regenerate grid:', error);
             alert('Failed to regenerate grid: ' + error.message);
         }
+    }
+
+    updateTileList() {
+        this.tileList.innerHTML = '';
+        
+        if (this.hasLoadedImage && this.currentFileName) {
+            const listItem = document.createElement('li');
+            listItem.className = 'tile-item';
+            
+            const tileName = document.createElement('span');
+            tileName.className = 'tile-name';
+            tileName.textContent = this.currentFileName;
+            tileName.title = this.currentFileName; // Show full name on hover
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'tile-remove';
+            removeBtn.innerHTML = '×';
+            removeBtn.title = 'Remove tile';
+            removeBtn.addEventListener('click', () => this.removeTile());
+            
+            listItem.appendChild(tileName);
+            listItem.appendChild(removeBtn);
+            this.tileList.appendChild(listItem);
+        } else {
+            const emptyMessage = document.createElement('li');
+            emptyMessage.className = 'tile-list-empty';
+            emptyMessage.textContent = 'No tiles loaded';
+            this.tileList.appendChild(emptyMessage);
+        }
+    }
+
+    removeTile() {
+        // Clear the loaded image data
+        this.hasLoadedImage = false;
+        this.currentImageData = null;
+        this.currentFileName = null;
+        
+        // Update image status
+        this.imageStatus.textContent = 'No image loaded';
+        
+        // Regenerate grid without image (this will clear the image from canvas)
+        this.imageBuffer = new ImageBuffer(
+            parseInt(document.getElementById('tile-width').value),
+            parseInt(document.getElementById('tile-height').value),
+            parseInt(document.getElementById('num-cols').value),
+            parseInt(document.getElementById('num-rows').value)
+        );
+        
+        // Update tile list display
+        this.updateTileList();
+        
+        // Render single frame to show pattern without image
+        this.renderSingleFrame();
+        
+        console.log('Tile removed successfully');
     }
 
     start() {

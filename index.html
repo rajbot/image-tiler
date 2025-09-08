@@ -149,6 +149,67 @@
             font-weight: 600;
             color: #333;
         }
+        .tile-list-section {
+            margin-top: 20px;
+        }
+        .tile-list-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 5px;
+        }
+        .tile-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .tile-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .tile-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #333;
+            margin-right: 8px;
+        }
+        .tile-remove {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .tile-remove:hover {
+            background-color: #dc3545;
+            color: white;
+        }
+        .tile-list-empty {
+            font-size: 13px;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
@@ -176,6 +237,13 @@
                         <input type="number" id="num-rows" value="2" min="1">
                     </div>
                 </div>
+            </div>
+            
+            <div class="tile-list-section">
+                <h3>Loaded Tiles</h3>
+                <ul id="tile-list" class="tile-list">
+                    <!-- Tile items will be dynamically added here -->
+                </ul>
             </div>
         </div>
         
