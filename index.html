@@ -6,14 +6,9 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 20px;
             background-color: #f0f0f0;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
         }
         canvas {
             border: 2px solid #333;
@@ -49,31 +44,72 @@
         }
         .image-controls {
             display: flex;
-            gap: 10px;
-            align-items: center;
+            flex-direction: column;
+            gap: 15px;
         }
         .image-status {
             font-size: 14px;
             color: #666;
         }
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .sidebar h2 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .center-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Fast Image Tiler - Rust WebAssembly Demo</h1>
-        <div class="image-controls">
-            <button id="load-image-btn">Load Image</button>
-            <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
-            <span id="image-status" class="image-status">No image loaded</span>
+    <div class="main-layout">
+        <div class="sidebar sidebar-left">
+            <h2>Grid Options</h2>
+            <p>Grid configuration options will go here.</p>
         </div>
-        <div class="stats">
-            <div id="fps">FPS: 0</div>
-            <div id="frame-count">Frame: 0</div>
+        
+        <div class="center-content">
+            <h1>Fast Image Tiler - Rust WebAssembly Demo</h1>
+            <div class="stats">
+                <div id="fps">FPS: 0</div>
+                <div id="frame-count">Frame: 0</div>
+            </div>
+            <canvas id="canvas" width="800" height="800"></canvas>
+            <div class="controls">
+                <button id="start-btn">Start</button>
+                <button id="stop-btn" disabled>Stop</button>
+            </div>
         </div>
-        <canvas id="canvas" width="800" height="800"></canvas>
-        <div class="controls">
-            <button id="start-btn">Start</button>
-            <button id="stop-btn" disabled>Stop</button>
+        
+        <div class="sidebar sidebar-right">
+            <h2>Image Options</h2>
+            <div class="image-controls">
+                <button id="load-image-btn">Load Image</button>
+                <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
+                <div id="image-status" class="image-status">No image loaded</div>
+            </div>
         </div>
     </div>
 
