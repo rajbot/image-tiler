@@ -116,6 +116,11 @@ impl ImageBuffer {
 
     #[wasm_bindgen]
     pub fn load_image_from_bytes(&mut self, image_data: &[u8], col: u32, row: u32) -> Result<(), JsValue> {
+        self.load_image_from_bytes_with_scale(image_data, col, row, 1.0)
+    }
+
+    #[wasm_bindgen]
+    pub fn load_image_from_bytes_with_scale(&mut self, image_data: &[u8], col: u32, row: u32, scale: f32) -> Result<(), JsValue> {
         // Validate tile position
         if col >= self.num_cols || row >= self.num_rows {
             return Err(JsValue::from_str(&format!("Invalid tile position ({}, {}). Grid is {}x{}", col, row, self.num_cols, self.num_rows)));
@@ -123,14 +128,16 @@ impl ImageBuffer {
         let img = image::load_from_memory(image_data)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
         
-        let resized_img = resize_preserve_aspect_ratio(img, self.tile_width, self.tile_height);
+        // Calculate scaled dimensions
+        let scaled_width = (self.tile_width as f32 * scale) as u32;
+        let scaled_height = (self.tile_height as f32 * scale) as u32;
+        
+        let resized_img = resize_preserve_aspect_ratio(img, scaled_width, scaled_height);
         let rgba_img = resized_img.to_rgba8();
         
-        // Calculate centering offsets within the target tile
+        // Get actual dimensions after aspect ratio preserving resize
         let actual_width = rgba_img.width() as u32;
         let actual_height = rgba_img.height() as u32;
-        let offset_x = (self.tile_width - actual_width) / 2;
-        let offset_y = (self.tile_height - actual_height) / 2;
         
         // Calculate absolute position in the full buffer
         let tile_start_x = (col * self.tile_width) as usize;
@@ -144,26 +151,39 @@ impl ImageBuffer {
             has_image: true,
         });
         
-        // Clear the entire target tile area with transparent pixels first
+        // Calculate offsets for centering/cropping
+        let (src_offset_x, src_offset_y, dst_offset_x, dst_offset_y) = if scale >= 1.0 {
+            // Scale >= 100%: crop center of scaled image to fit tile
+            let crop_x = (actual_width.saturating_sub(self.tile_width)) / 2;
+            let crop_y = (actual_height.saturating_sub(self.tile_height)) / 2;
+            (crop_x, crop_y, 0, 0)
+        } else {
+            // Scale < 100%: center smaller image within tile
+            let center_x = (self.tile_width - actual_width) / 2;
+            let center_y = (self.tile_height - actual_height) / 2;
+            (0, 0, center_x, center_y)
+        };
+
+        // Clear the entire target tile area first
         for y in 0..self.tile_height as usize {
             for x in 0..self.tile_width as usize {
                 let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
                 
                 if dst_index + 3 < self.data.len() {
-                    // Check if we're within the centered image bounds
-                    let img_x = x as i32 - offset_x as i32;
-                    let img_y = y as i32 - offset_y as i32;
+                    // Calculate source coordinates
+                    let src_x = x as i32 - dst_offset_x as i32 + src_offset_x as i32;
+                    let src_y = y as i32 - dst_offset_y as i32 + src_offset_y as i32;
                     
-                    if img_x >= 0 && img_y >= 0 && 
-                       img_x < actual_width as i32 && img_y < actual_height as i32 {
-                        // Copy pixel from centered image
-                        let pixel = rgba_img.get_pixel(img_x as u32, img_y as u32);
+                    if src_x >= 0 && src_y >= 0 && 
+                       src_x < actual_width as i32 && src_y < actual_height as i32 {
+                        // Copy pixel from image
+                        let pixel = rgba_img.get_pixel(src_x as u32, src_y as u32);
                         self.data[dst_index] = pixel[0];     // R
                         self.data[dst_index + 1] = pixel[1]; // G
                         self.data[dst_index + 2] = pixel[2]; // B
                         self.data[dst_index + 3] = pixel[3]; // A
                     } else {
-                        // Transparent pixel for areas outside the centered image
+                        // Transparent pixel for areas outside the image
                         self.data[dst_index] = 0;
                         self.data[dst_index + 1] = 0;
                         self.data[dst_index + 2] = 0;

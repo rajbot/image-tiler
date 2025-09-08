@@ -311,6 +311,41 @@
             color: #666;
             font-style: italic;
         }
+        .scale-control {
+            margin-bottom: 15px;
+        }
+        .scale-control label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .scale-input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .scale-input-group input {
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            transition: border-color 0.2s;
+            width: 80px;
+            text-align: center;
+        }
+        .scale-input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        .scale-unit {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -380,6 +415,13 @@
             <div class="right-sidebar-content">
                 <div id="selected-tile-info" class="selected-tile-info">
                     <em>No tile selected</em>
+                </div>
+                <div id="scale-control" class="scale-control" style="display: none;">
+                    <label for="tile-scale">Scale:</label>
+                    <div class="scale-input-group">
+                        <input type="number" id="tile-scale" min="10" max="500" step="10" value="100">
+                        <span class="scale-unit">%</span>
+                    </div>
                 </div>
             </div>
         </div>

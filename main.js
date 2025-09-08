@@ -12,6 +12,8 @@ class RenderLoop {
         this.fileInput = document.getElementById('file-input');
         this.tileList = document.getElementById('tile-list');
         this.selectedTileInfo = document.getElementById('selected-tile-info');
+        this.scaleControl = document.getElementById('scale-control');
+        this.tileScaleInput = document.getElementById('tile-scale');
         
         this.running = false;
         this.frameCount = 0;
@@ -53,6 +55,14 @@ class RenderLoop {
                     this.regenerateGrid();
                 }
             });
+        });
+        
+        // Add scale input event listeners
+        this.tileScaleInput.addEventListener('change', () => this.updateTileScale());
+        this.tileScaleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.updateTileScale();
+            }
         });
     }
 
@@ -116,7 +126,8 @@ class RenderLoop {
                 imageData: uint8Array,
                 tileIndex: tileIndex,
                 col: col,
-                row: row
+                row: row,
+                scale: 1.0 // Default scale 100%
             });
             
             // Update tile list display
@@ -195,7 +206,12 @@ class RenderLoop {
             // Reload valid tiles
             for (const { tileIndex, tileData, col, row } of tilesToReload) {
                 try {
-                    await this.imageBuffer.load_image_from_bytes(tileData.imageData, col, row);
+                    await this.imageBuffer.load_image_from_bytes_with_scale(
+                        tileData.imageData, 
+                        col, 
+                        row, 
+                        tileData.scale || 1.0
+                    );
                     // Update tile data with potentially new position
                     this.loadedTiles.set(tileIndex, {
                         ...tileData,
@@ -251,9 +267,19 @@ class RenderLoop {
             await this.imageBuffer.clear_tile(draggedTile.col, draggedTile.row);
             await this.imageBuffer.clear_tile(targetTile.col, targetTile.row);
 
-            // Reload both tiles in their new positions
-            await this.imageBuffer.load_image_from_bytes(draggedTile.imageData, draggedTile.col, draggedTile.row);
-            await this.imageBuffer.load_image_from_bytes(targetTile.imageData, targetTile.col, targetTile.row);
+            // Reload both tiles in their new positions with their scales
+            await this.imageBuffer.load_image_from_bytes_with_scale(
+                draggedTile.imageData, 
+                draggedTile.col, 
+                draggedTile.row, 
+                draggedTile.scale || 1.0
+            );
+            await this.imageBuffer.load_image_from_bytes_with_scale(
+                targetTile.imageData, 
+                targetTile.col, 
+                targetTile.row, 
+                targetTile.scale || 1.0
+            );
 
             // Update the tile list display
             this.updateTileList();
@@ -410,9 +436,59 @@ class RenderLoop {
     updateSelectedTileInfo() {
         if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
             this.selectedTileInfo.innerHTML = '<em>No tile selected</em>';
+            this.scaleControl.style.display = 'none';
         } else {
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.selectedTileInfo.textContent = `Selected: ${tileData.fileName}`;
+            this.scaleControl.style.display = 'block';
+            this.tileScaleInput.value = Math.round(tileData.scale * 100);
+        }
+    }
+
+    async updateTileScale() {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            return;
+        }
+
+        const newScalePercent = parseInt(this.tileScaleInput.value);
+        if (isNaN(newScalePercent) || newScalePercent < 10 || newScalePercent > 500) {
+            alert('Scale must be between 10% and 500%');
+            // Reset to current scale
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.tileScaleInput.value = Math.round(tileData.scale * 100);
+            return;
+        }
+
+        const newScale = newScalePercent / 100;
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        
+        if (Math.abs(tileData.scale - newScale) < 0.01) {
+            return; // No significant change
+        }
+
+        try {
+            // Update scale in tile data
+            tileData.scale = newScale;
+
+            // Reload image with new scale
+            await this.imageBuffer.load_image_from_bytes_with_scale(
+                tileData.imageData, 
+                tileData.col, 
+                tileData.row, 
+                newScale
+            );
+
+            // Render to show updated scale
+            this.renderSingleFrame();
+
+            console.log(`Tile scale updated to ${newScalePercent}% for tile at (${tileData.col}, ${tileData.row})`);
+        } catch (error) {
+            console.error('Failed to update tile scale:', error);
+            alert('Failed to update tile scale: ' + error.message);
+            
+            // Reset to previous scale
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.tileScaleInput.value = Math.round(tileData.scale * 100);
         }
     }
 
