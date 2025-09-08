@@ -28,6 +28,11 @@
             display: flex;
             gap: 20px;
         }
+        .image-controls-stats {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
         .export-controls {
             display: flex;
             gap: 10px;
@@ -53,6 +58,19 @@
         }
         #export-btn:hover {
             background-color: #218838;
+        }
+        #load-image-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-weight: 600;
+        }
+        #load-image-btn:hover {
+            background-color: #0056b3;
         }
         .controls {
             display: flex;
@@ -316,6 +334,10 @@
         <div class="center-content">
             <h1>Fast Image Tiler - Rust WebAssembly Demo</h1>
             <div class="stats">
+                <div class="image-controls-stats">
+                    <button id="load-image-btn">Load Image</button>
+                    <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
+                </div>
                 <div class="stats-info">
                     <div id="fps">FPS: 0</div>
                     <div id="frame-count">Frame: 0</div>
@@ -336,10 +358,8 @@
         </div>
         
         <div class="sidebar sidebar-right">
-            <h2>Image Options</h2>
-            <div class="image-controls">
-                <button id="load-image-btn">Load Image</button>
-                <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
+            <h2>Image Status</h2>
+            <div class="image-status-container">
                 <div id="image-status" class="image-status">No image loaded</div>
             </div>
         </div>
