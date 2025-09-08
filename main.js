@@ -19,14 +19,13 @@ class RenderLoop {
         this.fps = 0;
         this.frameTimeBuffer = [];
         this.maxFrameTimeBuffer = 60;
-        this.hasLoadedImage = false;
         
         this.imageBuffer = null;
         this.wasmModule = null;
         
-        // Store image data for regeneration
-        this.currentImageData = null;
-        this.currentFileName = null;
+        // Store multiple tile data - Map with tile index as key
+        this.loadedTiles = new Map();
+        this.nextTileIndex = 0; // Which tile position to load next image into
         
         this.setupEventListeners();
     }
@@ -49,6 +48,35 @@ class RenderLoop {
         });
     }
 
+    // Helper method to calculate grid position from tile index
+    getTilePosition(tileIndex) {
+        const numCols = parseInt(document.getElementById('num-cols').value);
+        const col = tileIndex % numCols;
+        const row = Math.floor(tileIndex / numCols);
+        return { col, row };
+    }
+
+    // Helper method to calculate tile index from grid position
+    getTileIndex(col, row) {
+        const numCols = parseInt(document.getElementById('num-cols').value);
+        return row * numCols + col;
+    }
+
+    // Get the next available tile position
+    getNextAvailableTileIndex() {
+        const numCols = parseInt(document.getElementById('num-cols').value);
+        const numRows = parseInt(document.getElementById('num-rows').value);
+        const totalTiles = numCols * numRows;
+
+        // Find first empty tile slot
+        for (let i = 0; i < totalTiles; i++) {
+            if (!this.loadedTiles.has(i)) {
+                return i;
+            }
+        }
+        return null; // No available slots
+    }
+
     async handleImageLoad(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -58,23 +86,36 @@ class RenderLoop {
             return;
         }
         
+        // Find next available tile position
+        const tileIndex = this.getNextAvailableTileIndex();
+        if (tileIndex === null) {
+            alert('All tile positions are full. Remove a tile first.');
+            return;
+        }
+        
         try {
             this.imageStatus.textContent = 'Loading image...';
             
             const arrayBuffer = await file.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
             
-            // Store image data for regeneration
-            this.currentImageData = uint8Array;
-            this.currentFileName = file.name;
+            const { col, row } = this.getTilePosition(tileIndex);
             
-            // Load image into Rust and resize to tile dimensions
-            await this.imageBuffer.load_image_from_bytes(uint8Array);
+            // Load image into Rust at specific tile position
+            await this.imageBuffer.load_image_from_bytes(uint8Array, col, row);
             
-            this.hasLoadedImage = true;
+            // Store tile data
+            this.loadedTiles.set(tileIndex, {
+                fileName: file.name,
+                imageData: uint8Array,
+                tileIndex: tileIndex,
+                col: col,
+                row: row
+            });
+            
             const tileWidth = this.imageBuffer.tile_width;
             const tileHeight = this.imageBuffer.tile_height;
-            this.imageStatus.textContent = `Loaded: ${file.name} (${tileWidth}x${tileHeight})`;
+            this.imageStatus.textContent = `Loaded: ${file.name} at tile (${col},${row}) (${tileWidth}x${tileHeight})`;
             
             // Update tile list display
             this.updateTileList();
@@ -82,7 +123,7 @@ class RenderLoop {
             // Render immediately to show the loaded image
             this.renderSingleFrame();
             
-            console.log('Image loaded and processed successfully');
+            console.log(`Image loaded successfully at tile position (${col}, ${row})`);
         } catch (error) {
             console.error('Failed to load image:', error);
             this.imageStatus.textContent = 'Failed to load image';
@@ -137,11 +178,39 @@ class RenderLoop {
             this.canvas.width = totalWidth;
             this.canvas.height = totalHeight;
             
-            // Reload image if one was loaded
-            if (this.currentImageData && this.currentFileName) {
-                await this.imageBuffer.load_image_from_bytes(this.currentImageData);
-                this.hasLoadedImage = true;
-                this.imageStatus.textContent = `Loaded: ${this.currentFileName} (${tileWidth}x${tileHeight})`;
+            // Reload all tiles that were previously loaded
+            const tilesToReload = [];
+            for (const [tileIndex, tileData] of this.loadedTiles) {
+                const { col, row } = this.getTilePosition(tileIndex);
+                // Check if this tile position is still valid in the new grid
+                if (col < numCols && row < numRows) {
+                    tilesToReload.push({ tileIndex, tileData, col, row });
+                }
+            }
+            
+            // Clear tiles that no longer fit
+            this.loadedTiles.clear();
+            
+            // Reload valid tiles
+            for (const { tileIndex, tileData, col, row } of tilesToReload) {
+                try {
+                    await this.imageBuffer.load_image_from_bytes(tileData.imageData, col, row);
+                    // Update tile data with potentially new position
+                    this.loadedTiles.set(tileIndex, {
+                        ...tileData,
+                        col: col,
+                        row: row
+                    });
+                } catch (error) {
+                    console.error(`Failed to reload tile at (${col}, ${row}):`, error);
+                }
+            }
+            
+            // Update status
+            if (this.loadedTiles.size > 0) {
+                this.imageStatus.textContent = `${this.loadedTiles.size} tiles loaded`;
+            } else {
+                this.imageStatus.textContent = 'No image loaded';
             }
             
             // Restart animation if it was running, otherwise render single frame
@@ -162,24 +231,29 @@ class RenderLoop {
     updateTileList() {
         this.tileList.innerHTML = '';
         
-        if (this.hasLoadedImage && this.currentFileName) {
-            const listItem = document.createElement('li');
-            listItem.className = 'tile-item';
+        if (this.loadedTiles.size > 0) {
+            // Sort tiles by index for consistent display order
+            const sortedTiles = Array.from(this.loadedTiles.entries()).sort((a, b) => a[0] - b[0]);
             
-            const tileName = document.createElement('span');
-            tileName.className = 'tile-name';
-            tileName.textContent = this.currentFileName;
-            tileName.title = this.currentFileName; // Show full name on hover
-            
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'tile-remove';
-            removeBtn.innerHTML = '×';
-            removeBtn.title = 'Remove tile';
-            removeBtn.addEventListener('click', () => this.removeTile());
-            
-            listItem.appendChild(tileName);
-            listItem.appendChild(removeBtn);
-            this.tileList.appendChild(listItem);
+            for (const [tileIndex, tileData] of sortedTiles) {
+                const listItem = document.createElement('li');
+                listItem.className = 'tile-item';
+                
+                const tileName = document.createElement('span');
+                tileName.className = 'tile-name';
+                tileName.textContent = `${tileData.fileName} (${tileData.col},${tileData.row})`;
+                tileName.title = `${tileData.fileName} at tile position (${tileData.col}, ${tileData.row})`; // Show full info on hover
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'tile-remove';
+                removeBtn.innerHTML = '×';
+                removeBtn.title = 'Remove tile';
+                removeBtn.addEventListener('click', () => this.removeTile(tileIndex));
+                
+                listItem.appendChild(tileName);
+                listItem.appendChild(removeBtn);
+                this.tileList.appendChild(listItem);
+            }
         } else {
             const emptyMessage = document.createElement('li');
             emptyMessage.className = 'tile-list-empty';
@@ -188,30 +262,34 @@ class RenderLoop {
         }
     }
 
-    removeTile() {
-        // Clear the loaded image data
-        this.hasLoadedImage = false;
-        this.currentImageData = null;
-        this.currentFileName = null;
+    async removeTile(tileIndex) {
+        if (!this.loadedTiles.has(tileIndex)) {
+            console.error('Attempted to remove non-existent tile:', tileIndex);
+            return;
+        }
         
-        // Update image status
-        this.imageStatus.textContent = 'No image loaded';
+        const tileData = this.loadedTiles.get(tileIndex);
         
-        // Regenerate grid without image (this will clear the image from canvas)
-        this.imageBuffer = new ImageBuffer(
-            parseInt(document.getElementById('tile-width').value),
-            parseInt(document.getElementById('tile-height').value),
-            parseInt(document.getElementById('num-cols').value),
-            parseInt(document.getElementById('num-rows').value)
-        );
+        // Remove tile from our data structure
+        this.loadedTiles.delete(tileIndex);
+        
+        // Clear the specific tile in the Rust ImageBuffer
+        await this.imageBuffer.clear_tile(tileData.col, tileData.row);
+        
+        // Update status
+        if (this.loadedTiles.size > 0) {
+            this.imageStatus.textContent = `${this.loadedTiles.size} tiles loaded`;
+        } else {
+            this.imageStatus.textContent = 'No image loaded';
+        }
         
         // Update tile list display
         this.updateTileList();
         
-        // Render single frame to show pattern without image
+        // Render single frame to show updated pattern
         this.renderSingleFrame();
         
-        console.log('Tile removed successfully');
+        console.log(`Tile removed successfully from position (${tileData.col}, ${tileData.row})`);
     }
 
     start() {

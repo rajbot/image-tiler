@@ -1,6 +1,13 @@
 use wasm_bindgen::prelude::*;
 use image::{DynamicImage, GenericImageView};
 
+#[derive(Clone)]
+struct TileInfo {
+    col: u32,
+    row: u32,
+    has_image: bool,
+}
+
 #[wasm_bindgen]
 pub struct ImageBuffer {
     width: u32,
@@ -10,11 +17,7 @@ pub struct ImageBuffer {
     num_cols: u32,    
     num_rows: u32,
     data: Vec<u8>,
-    has_loaded_image: bool,
-    image_start_x: usize,
-    image_start_y: usize,
-    image_width: u32,
-    image_height: u32,
+    loaded_tiles: Vec<TileInfo>,
 }
 
 #[wasm_bindgen]
@@ -32,11 +35,7 @@ impl ImageBuffer {
             num_cols,
             num_rows, 
             data,
-            has_loaded_image: false,
-            image_start_x: 0,
-            image_start_y: 0,
-            image_width: 0,
-            image_height: 0,
+            loaded_tiles: Vec::new(),
         }
     }
 
@@ -70,6 +69,23 @@ impl ImageBuffer {
         self.data.len()
     }
 
+    // Helper method to check if a pixel is within any loaded tile
+    fn is_pixel_in_loaded_tile(&self, x: usize, y: usize) -> bool {
+        for tile_info in &self.loaded_tiles {
+            if tile_info.has_image {
+                let tile_start_x = (tile_info.col * self.tile_width) as usize;
+                let tile_start_y = (tile_info.row * self.tile_height) as usize;
+                let tile_end_x = tile_start_x + self.tile_width as usize;
+                let tile_end_y = tile_start_y + self.tile_height as usize;
+                
+                if x >= tile_start_x && x < tile_end_x && y >= tile_start_y && y < tile_end_y {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     #[wasm_bindgen]
     pub fn generate_pattern(&mut self, frame: u32) {
         let width = self.width as usize;
@@ -77,12 +93,8 @@ impl ImageBuffer {
         
         for y in 0..height {
             for x in 0..width {
-                // Skip pixels that are part of the loaded image
-                if self.has_loaded_image && 
-                   x >= self.image_start_x && 
-                   x < self.image_start_x + self.image_width as usize &&
-                   y >= self.image_start_y && 
-                   y < self.image_start_y + self.image_height as usize {
+                // Skip pixels that are part of any loaded image
+                if self.is_pixel_in_loaded_tile(x, y) {
                     continue;
                 }
                 
@@ -103,7 +115,11 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
-    pub fn load_image_from_bytes(&mut self, image_data: &[u8]) -> Result<(), JsValue> {
+    pub fn load_image_from_bytes(&mut self, image_data: &[u8], col: u32, row: u32) -> Result<(), JsValue> {
+        // Validate tile position
+        if col >= self.num_cols || row >= self.num_rows {
+            return Err(JsValue::from_str(&format!("Invalid tile position ({}, {}). Grid is {}x{}", col, row, self.num_cols, self.num_rows)));
+        }
         let img = image::load_from_memory(image_data)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
         
@@ -116,20 +132,22 @@ impl ImageBuffer {
         let offset_x = (self.tile_width - actual_width) / 2;
         let offset_y = (self.tile_height - actual_height) / 2;
         
-        // Store image position and dimensions for pattern generation
-        self.image_start_x = 0;
-        self.image_start_y = 0;
-        self.image_width = self.tile_width;
-        self.image_height = self.tile_height;
-        self.has_loaded_image = true;
+        // Calculate absolute position in the full buffer
+        let tile_start_x = (col * self.tile_width) as usize;
+        let tile_start_y = (row * self.tile_height) as usize;
         
-        // Clear the entire target area with transparent pixels first
-        let start_x = self.image_start_x;
-        let start_y = self.image_start_y;
+        // Remove any existing tile info for this position, then add new one
+        self.loaded_tiles.retain(|tile| tile.col != col || tile.row != row);
+        self.loaded_tiles.push(TileInfo {
+            col,
+            row,
+            has_image: true,
+        });
         
+        // Clear the entire target tile area with transparent pixels first
         for y in 0..self.tile_height as usize {
             for x in 0..self.tile_width as usize {
-                let dst_index = ((start_y + y) * self.width as usize + (start_x + x)) * 4;
+                let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
                 
                 if dst_index + 3 < self.data.len() {
                     // Check if we're within the centered image bounds
@@ -156,6 +174,42 @@ impl ImageBuffer {
         }
         
         Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_tile(&mut self, col: u32, row: u32) -> Result<(), JsValue> {
+        // Validate tile position
+        if col >= self.num_cols || row >= self.num_rows {
+            return Err(JsValue::from_str(&format!("Invalid tile position ({}, {}). Grid is {}x{}", col, row, self.num_cols, self.num_rows)));
+        }
+
+        // Remove tile from loaded_tiles
+        self.loaded_tiles.retain(|tile| tile.col != col || tile.row != row);
+
+        // Clear the tile area by setting it to transparent
+        let tile_start_x = (col * self.tile_width) as usize;
+        let tile_start_y = (row * self.tile_height) as usize;
+
+        for y in 0..self.tile_height as usize {
+            for x in 0..self.tile_width as usize {
+                let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
+                
+                if dst_index + 3 < self.data.len() {
+                    // Set to transparent
+                    self.data[dst_index] = 0;     // R
+                    self.data[dst_index + 1] = 0; // G
+                    self.data[dst_index + 2] = 0; // B
+                    self.data[dst_index + 3] = 0; // A
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn is_tile_loaded(&self, col: u32, row: u32) -> bool {
+        self.loaded_tiles.iter().any(|tile| tile.col == col && tile.row == row && tile.has_image)
     }
 }
 
