@@ -32,6 +32,78 @@ python3 -m http.server 8000
 3. Modify `index.html` for JavaScript/UI changes (no rebuild needed)
 4. Refresh browser to test changes
 
+## Testing
+
+### JavaScript/Playwright E2E Tests
+
+End-to-end tests using Playwright to verify application functionality in browsers:
+
+```bash
+# Run all tests in headless mode
+npm test
+
+# Run tests with browser UI visible (useful for debugging)
+npm run test:headed
+
+# Run tests with Playwright UI mode (interactive test runner)
+npm run test:ui
+```
+
+**Test Configuration**:
+- **Config file**: `playwright.config.js`
+- **Test files**: `tests/app.spec.js`
+- **Browsers**: Chrome, Firefox, Safari
+- **Base URL**: `http://localhost:8000` (auto-started with Python server)
+
+**Test Coverage**:
+- Application loading and title display
+- UI element visibility and initial values
+- Animation start/stop functionality
+- Grid dimension changes and canvas resizing
+- Image upload simulation (currently skipped)
+- Input validation for grid values
+- Animation state preservation during grid changes
+- WebAssembly initialization error handling
+
+### Rust Unit Tests
+
+Standard Rust unit tests for core functionality:
+
+```bash
+# Run all Rust unit tests
+cargo test
+```
+
+Tests are located in the `tests` module within `src/lib.rs` and cover:
+- ImageBuffer initialization
+- Pattern generation
+- Memory management functions
+
+### Rust/WASM Tests
+
+WebAssembly-specific tests using wasm-bindgen-test:
+
+```bash
+# Run WASM tests in headless Chrome
+wasm-pack test --chrome --headless
+
+# Run WASM tests with browser visible (debugging)
+wasm-pack test --chrome
+```
+
+Tests verify WebAssembly bindings and browser integration functionality.
+
+### CI/CD Pipeline
+
+Automated testing via GitHub Actions (`.github/workflows/test.yml`):
+
+1. **Rust Tests**: `cargo test`
+2. **WASM Build**: `wasm-pack build --target web --out-dir pkg`
+3. **WASM Tests**: `wasm-pack test --chrome --headless`
+4. **E2E Tests**: `npm test` (Playwright across all browsers)
+
+The pipeline ensures all tests pass before allowing merges to main branch.
+
 ## Architecture Details
 
 ### Core Components
