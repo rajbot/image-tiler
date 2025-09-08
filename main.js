@@ -452,6 +452,13 @@ class RenderLoop {
     }
 
     exportCanvas(format) {
+        // Temporarily remove marching ants for clean export
+        const originalSelection = this.selectedTileIndex;
+        this.selectedTileIndex = null;
+        
+        // Redraw canvas without marching ants
+        this.drawFrameWithStaticBackground();
+        
         // Get the canvas element
         const canvas = this.canvas;
         
@@ -480,6 +487,17 @@ class RenderLoop {
             URL.revokeObjectURL(url);
             
             console.log(`Canvas exported as ${filename}`);
+            
+            // Restore selection and redraw if needed
+            this.selectedTileIndex = originalSelection;
+            if (originalSelection !== null) {
+                if (this.running) {
+                    // Let the main animation loop handle the redraw
+                } else {
+                    // Restart selection animation for static mode
+                    this.startSelectionAnimation();
+                }
+            }
         }, mimeType, quality);
     }
 
