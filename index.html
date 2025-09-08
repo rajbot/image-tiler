@@ -298,6 +298,19 @@
             text-align: center;
             padding: 10px;
         }
+        .selected-tile-info {
+            font-size: 14px;
+            color: #333;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .selected-tile-info em {
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -363,9 +376,11 @@
         </div>
         
         <div class="sidebar sidebar-right">
-            <h2>Image Status</h2>
-            <div class="image-status-container">
-                <div id="image-status" class="image-status">No image loaded</div>
+            <h2>Tile Options</h2>
+            <div class="right-sidebar-content">
+                <div id="selected-tile-info" class="selected-tile-info">
+                    <em>No tile selected</em>
+                </div>
             </div>
         </div>
     </div>

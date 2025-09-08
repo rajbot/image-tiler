@@ -10,8 +10,8 @@ class RenderLoop {
         this.stopBtn = document.getElementById('stop-btn');
         this.loadImageBtn = document.getElementById('load-image-btn');
         this.fileInput = document.getElementById('file-input');
-        this.imageStatus = document.getElementById('image-status');
         this.tileList = document.getElementById('tile-list');
+        this.selectedTileInfo = document.getElementById('selected-tile-info');
         
         this.running = false;
         this.frameCount = 0;
@@ -102,8 +102,6 @@ class RenderLoop {
         }
         
         try {
-            this.imageStatus.textContent = 'Loading image...';
-            
             const arrayBuffer = await file.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
             
@@ -121,10 +119,6 @@ class RenderLoop {
                 row: row
             });
             
-            const tileWidth = this.imageBuffer.tile_width;
-            const tileHeight = this.imageBuffer.tile_height;
-            this.imageStatus.textContent = `Loaded: ${file.name} at tile (${col},${row}) (${tileWidth}x${tileHeight})`;
-            
             // Update tile list display
             this.updateTileList();
             
@@ -134,7 +128,6 @@ class RenderLoop {
             console.log(`Image loaded successfully at tile position (${col}, ${row})`);
         } catch (error) {
             console.error('Failed to load image:', error);
-            this.imageStatus.textContent = 'Failed to load image';
             alert('Failed to load image: ' + error.message);
         }
     }
@@ -214,12 +207,7 @@ class RenderLoop {
                 }
             }
             
-            // Update status
-            if (this.loadedTiles.size > 0) {
-                this.imageStatus.textContent = `${this.loadedTiles.size} tiles loaded`;
-            } else {
-                this.imageStatus.textContent = 'No image loaded';
-            }
+            // Status updates removed to free up right sidebar
             
             // Restart animation if it was running, otherwise render single frame
             if (wasRunning) {
@@ -338,6 +326,9 @@ class RenderLoop {
                     // Update visual state of all tiles
                     this.updateTileListSelection();
                     
+                    // Update selected tile info in right sidebar
+                    this.updateSelectedTileInfo();
+                    
                     // Render to show/hide selection
                     this.renderSingleFrame();
                 });
@@ -416,6 +407,15 @@ class RenderLoop {
         });
     }
 
+    updateSelectedTileInfo() {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            this.selectedTileInfo.innerHTML = '<em>No tile selected</em>';
+        } else {
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.selectedTileInfo.textContent = `Selected: ${tileData.fileName}`;
+        }
+    }
+
     async removeTile(tileIndex) {
         if (!this.loadedTiles.has(tileIndex)) {
             console.error('Attempted to remove non-existent tile:', tileIndex);
@@ -427,6 +427,7 @@ class RenderLoop {
         // Clear selection if this tile was selected
         if (this.selectedTileIndex === tileIndex) {
             this.selectedTileIndex = null;
+            this.updateSelectedTileInfo();
         }
         
         // Remove tile from our data structure
@@ -435,12 +436,7 @@ class RenderLoop {
         // Clear the specific tile in the Rust ImageBuffer
         await this.imageBuffer.clear_tile(tileData.col, tileData.row);
         
-        // Update status
-        if (this.loadedTiles.size > 0) {
-            this.imageStatus.textContent = `${this.loadedTiles.size} tiles loaded`;
-        } else {
-            this.imageStatus.textContent = 'No image loaded';
-        }
+        // Status updates removed to free up right sidebar
         
         // Update tile list display
         this.updateTileList();
