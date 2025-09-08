@@ -75,6 +75,9 @@ class RenderLoop {
             const tileHeight = this.imageBuffer.tile_height;
             this.imageStatus.textContent = `Loaded: ${file.name} (${tileWidth}x${tileHeight})`;
             
+            // Render immediately to show the loaded image
+            this.renderSingleFrame();
+            
             console.log('Image loaded and processed successfully');
         } catch (error) {
             console.error('Failed to load image:', error);
@@ -87,6 +90,10 @@ class RenderLoop {
         try {
             this.wasmModule = await init();
             this.imageBuffer = new ImageBuffer(400, 400, 2, 2);
+            
+            // Render initial frame to show default pattern
+            this.renderSingleFrame();
+            
             console.log('WebAssembly module loaded successfully');
         } catch (error) {
             console.error('Failed to load WebAssembly module:', error);
@@ -130,9 +137,12 @@ class RenderLoop {
                 this.imageStatus.textContent = `Loaded: ${this.currentFileName} (${tileWidth}x${tileHeight})`;
             }
             
-            // Restart animation if it was running
+            // Restart animation if it was running, otherwise render single frame
             if (wasRunning) {
                 this.start();
+            } else {
+                // Show the updated grid immediately if not animating
+                this.renderSingleFrame();
             }
             
             console.log(`Grid regenerated: ${tileWidth}x${tileHeight} tiles, ${numCols}x${numRows} grid`);
@@ -180,13 +190,9 @@ class RenderLoop {
         this.lastTime = currentTime;
     }
 
-    render(currentTime = performance.now()) {
-        if (!this.running) return;
-
-        this.calculateFPS(currentTime);
-        
+    drawFrame(frameNumber = this.frameCount) {
         // Generate new pattern in Rust
-        this.imageBuffer.generate_pattern(this.frameCount);
+        this.imageBuffer.generate_pattern(frameNumber);
         
         // Get WASM memory buffer
         const wasmMemory = this.wasmModule.memory;
@@ -199,6 +205,20 @@ class RenderLoop {
         
         // Draw to canvas
         this.ctx.putImageData(imageData, 0, 0);
+    }
+
+    renderSingleFrame() {
+        // Render a single frame without starting animation loop
+        this.drawFrame(0); // Use frame 0 for static display
+    }
+
+    render(currentTime = performance.now()) {
+        if (!this.running) return;
+
+        this.calculateFPS(currentTime);
+        
+        // Draw the current frame
+        this.drawFrame();
         
         // Update stats
         this.frameCount++;
