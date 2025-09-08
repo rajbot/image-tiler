@@ -184,6 +184,10 @@
                 this.imageBuffer = null;
                 this.wasmModule = null;
                 
+                // Store image data for regeneration
+                this.currentImageData = null;
+                this.currentFileName = null;
+                
                 this.setupEventListeners();
             }
 
@@ -192,6 +196,17 @@
                 this.stopBtn.addEventListener('click', () => this.stop());
                 this.loadImageBtn.addEventListener('click', () => this.fileInput.click());
                 this.fileInput.addEventListener('change', (e) => this.handleImageLoad(e));
+                
+                // Add Enter key listeners to grid input fields
+                const gridInputs = ['tile-width', 'tile-height', 'num-cols', 'num-rows'];
+                gridInputs.forEach(inputId => {
+                    const input = document.getElementById(inputId);
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            this.regenerateGrid();
+                        }
+                    });
+                });
             }
 
             async handleImageLoad(event) {
@@ -208,6 +223,10 @@
                     
                     const arrayBuffer = await file.arrayBuffer();
                     const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    // Store image data for regeneration
+                    this.currentImageData = uint8Array;
+                    this.currentFileName = file.name;
                     
                     // Load image into Rust and resize to tile dimensions
                     await this.imageBuffer.load_image_from_bytes(uint8Array);
@@ -233,6 +252,54 @@
                 } catch (error) {
                     console.error('Failed to load WebAssembly module:', error);
                     throw error;
+                }
+            }
+
+            async regenerateGrid() {
+                try {
+                    // Read current values from input fields
+                    const tileWidth = parseInt(document.getElementById('tile-width').value);
+                    const tileHeight = parseInt(document.getElementById('tile-height').value);
+                    const numCols = parseInt(document.getElementById('num-cols').value);
+                    const numRows = parseInt(document.getElementById('num-rows').value);
+                    
+                    // Validate inputs
+                    if (tileWidth <= 0 || tileHeight <= 0 || numCols <= 0 || numRows <= 0) {
+                        alert('All grid values must be positive integers');
+                        return;
+                    }
+                    
+                    // Stop animation if running
+                    const wasRunning = this.running;
+                    if (this.running) {
+                        this.stop();
+                    }
+                    
+                    // Create new ImageBuffer with new dimensions
+                    this.imageBuffer = new ImageBuffer(tileWidth, tileHeight, numCols, numRows);
+                    
+                    // Update canvas size to match new total dimensions
+                    const totalWidth = tileWidth * numCols;
+                    const totalHeight = tileHeight * numRows;
+                    this.canvas.width = totalWidth;
+                    this.canvas.height = totalHeight;
+                    
+                    // Reload image if one was loaded
+                    if (this.currentImageData && this.currentFileName) {
+                        await this.imageBuffer.load_image_from_bytes(this.currentImageData);
+                        this.hasLoadedImage = true;
+                        this.imageStatus.textContent = `Loaded: ${this.currentFileName} (${tileWidth}x${tileHeight})`;
+                    }
+                    
+                    // Restart animation if it was running
+                    if (wasRunning) {
+                        this.start();
+                    }
+                    
+                    console.log(`Grid regenerated: ${tileWidth}x${tileHeight} tiles, ${numCols}x${numRows} grid`);
+                } catch (error) {
+                    console.error('Failed to regenerate grid:', error);
+                    alert('Failed to regenerate grid: ' + error.message);
                 }
             }
 
