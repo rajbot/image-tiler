@@ -209,11 +209,13 @@
                     const arrayBuffer = await file.arrayBuffer();
                     const uint8Array = new Uint8Array(arrayBuffer);
                     
-                    // Load image into Rust and resize to 400x400
-                    await this.imageBuffer.load_image_from_bytes(uint8Array, 400, 400);
+                    // Load image into Rust and resize to tile dimensions
+                    await this.imageBuffer.load_image_from_bytes(uint8Array);
                     
                     this.hasLoadedImage = true;
-                    this.imageStatus.textContent = `Loaded: ${file.name} (400x400)`;
+                    const tileWidth = this.imageBuffer.tile_width;
+                    const tileHeight = this.imageBuffer.tile_height;
+                    this.imageStatus.textContent = `Loaded: ${file.name} (${tileWidth}x${tileHeight})`;
                     
                     console.log('Image loaded and processed successfully');
                 } catch (error) {

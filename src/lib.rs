@@ -93,32 +93,32 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
-    pub fn load_image_from_bytes(&mut self, image_data: &[u8], target_width: u32, target_height: u32) -> Result<(), JsValue> {
+    pub fn load_image_from_bytes(&mut self, image_data: &[u8]) -> Result<(), JsValue> {
         let img = image::load_from_memory(image_data)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
         
-        let resized_img = resize_preserve_aspect_ratio(img, target_width, target_height);
+        let resized_img = resize_preserve_aspect_ratio(img, self.tile_width, self.tile_height);
         let rgba_img = resized_img.to_rgba8();
         
         // Calculate centering offsets within the target tile
         let actual_width = rgba_img.width() as u32;
         let actual_height = rgba_img.height() as u32;
-        let offset_x = (target_width - actual_width) / 2;
-        let offset_y = (target_height - actual_height) / 2;
+        let offset_x = (self.tile_width - actual_width) / 2;
+        let offset_y = (self.tile_height - actual_height) / 2;
         
         // Store image position and dimensions for pattern generation
         self.image_start_x = 0;
         self.image_start_y = 0;
-        self.image_width = target_width;
-        self.image_height = target_height;
+        self.image_width = self.tile_width;
+        self.image_height = self.tile_height;
         self.has_loaded_image = true;
         
         // Clear the entire target area with transparent pixels first
         let start_x = self.image_start_x;
         let start_y = self.image_start_y;
         
-        for y in 0..target_height as usize {
-            for x in 0..target_width as usize {
+        for y in 0..self.tile_height as usize {
+            for x in 0..self.tile_width as usize {
                 let dst_index = ((start_y + y) * self.width as usize + (start_x + x)) * 4;
                 
                 if dst_index + 3 < self.data.len() {
