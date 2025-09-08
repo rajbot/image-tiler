@@ -134,6 +134,11 @@
             min-width: 45px; /* Minimum usable width */
             text-align: center;
         }
+        .input-group-row .input-compact.tile-size input {
+            width: 5ch; /* Width for ~5 characters for tile sizes */
+            max-width: 80px; /* Larger max width for tile dimensions */
+            min-width: 65px; /* Larger minimum width */
+        }
         .input-group-row .input-compact input:focus {
             outline: none;
             border-color: #007bff;
@@ -151,13 +156,15 @@
         <div class="sidebar sidebar-left">
             <h2>Grid Options</h2>
             <div class="grid-controls">
-                <div class="input-group">
-                    <label for="tile-width">Tile Width:</label>
-                    <input type="number" id="tile-width" value="400" min="1">
-                </div>
-                <div class="input-group">
-                    <label for="tile-height">Tile Height:</label>
-                    <input type="number" id="tile-height" value="400" min="1">
+                <div class="input-group-row">
+                    <div class="input-compact tile-size">
+                        <label for="tile-width">Width:</label>
+                        <input type="number" id="tile-width" value="400" min="1">
+                    </div>
+                    <div class="input-compact tile-size">
+                        <label for="tile-height">Height:</label>
+                        <input type="number" id="tile-height" value="400" min="1">
+                    </div>
                 </div>
                 <div class="input-group-row">
                     <div class="input-compact">
