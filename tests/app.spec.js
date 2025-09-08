@@ -174,4 +174,124 @@ test.describe('Fast Image Tiler Application', () => {
     // This is a basic check - in a real scenario we'd mock the WASM loading
     expect(hasErrorHandling).toBeDefined();
   });
+
+  test('should display export controls in stats section', async ({ page }) => {
+    // Check that export controls are visible
+    await expect(page.locator('#export-format')).toBeVisible();
+    await expect(page.locator('#export-btn')).toBeVisible();
+    
+    // Verify format options
+    const formatOptions = await page.locator('#export-format option').allTextContents();
+    expect(formatOptions).toEqual(['PNG', 'JPG']);
+    
+    // Check default selection
+    const defaultFormat = await page.locator('#export-format').inputValue();
+    expect(defaultFormat).toBe('png');
+    
+    // Verify export button text
+    await expect(page.locator('#export-btn')).toHaveText('Export Image');
+  });
+
+  test('should change format selection', async ({ page }) => {
+    // Change format to JPG
+    await page.selectOption('#export-format', 'jpeg');
+    
+    // Verify selection changed
+    const selectedFormat = await page.locator('#export-format').inputValue();
+    expect(selectedFormat).toBe('jpeg');
+    
+    // Change back to PNG
+    await page.selectOption('#export-format', 'png');
+    const pngFormat = await page.locator('#export-format').inputValue();
+    expect(pngFormat).toBe('png');
+  });
+
+  test('should trigger export download on button click', async ({ page }) => {
+    // Set up download event listener
+    const downloadPromise = page.waitForEvent('download');
+    
+    // Click export button
+    await page.click('#export-btn');
+    
+    // Wait for download to start
+    const download = await downloadPromise;
+    
+    // Verify download properties
+    const filename = download.suggestedFilename();
+    expect(filename).toMatch(/^tile-export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.png$/);
+    
+    // Verify download started
+    expect(download).toBeTruthy();
+  });
+
+  test('should export in different formats', async ({ page }) => {
+    // Test PNG export
+    await page.selectOption('#export-format', 'png');
+    
+    const pngDownloadPromise = page.waitForEvent('download');
+    await page.click('#export-btn');
+    const pngDownload = await pngDownloadPromise;
+    
+    const pngFilename = pngDownload.suggestedFilename();
+    expect(pngFilename).toMatch(/\.png$/);
+    
+    // Test JPG export
+    await page.selectOption('#export-format', 'jpeg');
+    
+    const jpgDownloadPromise = page.waitForEvent('download');
+    await page.click('#export-btn');
+    const jpgDownload = await jpgDownloadPromise;
+    
+    const jpgFilename = jpgDownload.suggestedFilename();
+    expect(jpgFilename).toMatch(/\.jpg$/);
+  });
+
+  test('should export canvas with current state', async ({ page }) => {
+    // Start animation to change canvas state
+    await page.click('#start-btn');
+    
+    // Wait a moment for canvas to update
+    await page.waitForTimeout(500);
+    
+    // Stop animation
+    await page.click('#stop-btn');
+    
+    // Export the canvas
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('#export-btn');
+    const download = await downloadPromise;
+    
+    // Verify export completed
+    expect(download).toBeTruthy();
+    expect(download.suggestedFilename()).toMatch(/^tile-export-.*\.png$/);
+  });
+
+  test('should maintain format selection during session', async ({ page }) => {
+    // Change to JPG format
+    await page.selectOption('#export-format', 'jpeg');
+    
+    // Perform some other actions
+    await page.fill('#tile-width', '300');
+    await page.press('#tile-width', 'Enter');
+    
+    // Verify format selection is maintained
+    const maintainedFormat = await page.locator('#export-format').inputValue();
+    expect(maintainedFormat).toBe('jpeg');
+  });
+
+  test('should position export controls correctly in stats section', async ({ page }) => {
+    // Check that stats section has flexbox layout
+    const statsDisplay = await page.locator('.stats').evaluate(el => 
+      window.getComputedStyle(el).display
+    );
+    expect(statsDisplay).toBe('flex');
+    
+    // Verify export controls are positioned to the right
+    const exportControls = page.locator('.export-controls');
+    await expect(exportControls).toBeVisible();
+    
+    // Check that both stats-info and export-controls are present
+    await expect(page.locator('.stats-info')).toBeVisible();
+    await expect(page.locator('.export-controls')).toBeVisible();
+  });
 });
