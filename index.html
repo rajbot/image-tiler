@@ -145,7 +145,7 @@
             async initialize() {
                 try {
                     this.wasmModule = await init();
-                    this.imageBuffer = new ImageBuffer(800, 800);
+                    this.imageBuffer = new ImageBuffer(400, 400, 2, 2);
                     console.log('WebAssembly module loaded successfully');
                 } catch (error) {
                     console.error('Failed to load WebAssembly module:', error);
@@ -206,7 +206,7 @@
                 
                 // Create ImageData from WASM memory
                 const uint8Array = new Uint8ClampedArray(wasmMemory.buffer, dataPtr, dataLen);
-                const imageData = new ImageData(uint8Array, 800, 800);
+                const imageData = new ImageData(uint8Array, this.imageBuffer.width, this.imageBuffer.height);
                 
                 // Draw to canvas
                 this.ctx.putImageData(imageData, 0, 0);

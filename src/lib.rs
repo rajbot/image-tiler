@@ -5,6 +5,10 @@ use image::{DynamicImage, GenericImageView};
 pub struct ImageBuffer {
     width: u32,
     height: u32,
+    tile_width: u32,
+    tile_height: u32,
+    num_cols: u32,    
+    num_rows: u32,
     data: Vec<u8>,
     has_loaded_image: bool,
     image_start_x: usize,
@@ -16,11 +20,17 @@ pub struct ImageBuffer {
 #[wasm_bindgen]
 impl ImageBuffer {
     #[wasm_bindgen(constructor)]
-    pub fn new(width: u32, height: u32) -> ImageBuffer {
+    pub fn new(tile_width: u32, tile_height: u32, num_cols: u32, num_rows: u32) -> ImageBuffer {
+    	let width = tile_width * num_cols;
+    	let height = tile_height * num_rows;
         let data = vec![0; (width * height * 4) as usize];
         ImageBuffer { 
             width, 
-            height, 
+            height,
+            tile_width,
+            tile_height,
+            num_cols,
+            num_rows, 
             data,
             has_loaded_image: false,
             image_start_x: 0,
