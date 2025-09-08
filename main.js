@@ -19,6 +19,7 @@ class RenderLoop {
         this.fps = 0;
         this.frameTimeBuffer = [];
         this.maxFrameTimeBuffer = 60;
+        this.selectionAnimationId = null; // For marching ants animation when not running
         
         this.imageBuffer = null;
         this.wasmModule = null;
@@ -27,6 +28,7 @@ class RenderLoop {
         this.loadedTiles = new Map();
         this.nextTileIndex = 0; // Which tile position to load next image into
         this.draggedTileIndex = null; // Track which tile is being dragged
+        this.selectedTileIndex = null; // Track which tile is selected
         
         this.setupEventListeners();
     }
@@ -312,6 +314,34 @@ class RenderLoop {
                 removeBtn.title = 'Remove tile';
                 removeBtn.addEventListener('click', () => this.removeTile(tileIndex));
                 
+                // Add click event listener for selection
+                listItem.addEventListener('click', (e) => {
+                    // Don't select if clicking drag handle or remove button
+                    if (e.target.classList.contains('tile-drag-handle') || 
+                        e.target.classList.contains('tile-remove')) {
+                        return;
+                    }
+                    
+                    // Don't select during drag operations
+                    if (this.draggedTileIndex !== null) {
+                        return;
+                    }
+                    
+                    // Toggle selection
+                    const clickedIndex = parseInt(listItem.dataset.tileIndex);
+                    if (this.selectedTileIndex === clickedIndex) {
+                        this.selectedTileIndex = null; // Deselect
+                    } else {
+                        this.selectedTileIndex = clickedIndex; // Select
+                    }
+                    
+                    // Update visual state of all tiles
+                    this.updateTileListSelection();
+                    
+                    // Render to show/hide selection
+                    this.renderSingleFrame();
+                });
+                
                 // Add drag event listeners
                 listItem.addEventListener('dragstart', (e) => {
                     this.draggedTileIndex = parseInt(e.target.dataset.tileIndex);
@@ -359,6 +389,11 @@ class RenderLoop {
                 listItem.appendChild(tileName);
                 listItem.appendChild(removeBtn);
                 this.tileList.appendChild(listItem);
+                
+                // Update selection visual state
+                if (this.selectedTileIndex === tileIndex) {
+                    listItem.classList.add('selected');
+                }
             }
         } else {
             const emptyMessage = document.createElement('li');
@@ -368,6 +403,19 @@ class RenderLoop {
         }
     }
 
+    updateTileListSelection() {
+        // Update selection visual state for all tile items
+        const tileItems = document.querySelectorAll('.tile-item');
+        tileItems.forEach(item => {
+            const itemIndex = parseInt(item.dataset.tileIndex);
+            if (this.selectedTileIndex === itemIndex) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
     async removeTile(tileIndex) {
         if (!this.loadedTiles.has(tileIndex)) {
             console.error('Attempted to remove non-existent tile:', tileIndex);
@@ -375,6 +423,11 @@ class RenderLoop {
         }
         
         const tileData = this.loadedTiles.get(tileIndex);
+        
+        // Clear selection if this tile was selected
+        if (this.selectedTileIndex === tileIndex) {
+            this.selectedTileIndex = null;
+        }
         
         // Remove tile from our data structure
         this.loadedTiles.delete(tileIndex);
@@ -433,6 +486,9 @@ class RenderLoop {
     start() {
         if (this.running) return;
         
+        // Stop selection animation since main animation will handle it
+        this.stopSelectionAnimation();
+        
         this.running = true;
         this.startBtn.disabled = true;
         this.stopBtn.disabled = false;
@@ -447,6 +503,11 @@ class RenderLoop {
         this.running = false;
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
+        
+        // Restart selection animation if a tile is selected
+        if (this.selectedTileIndex !== null) {
+            this.startSelectionAnimation();
+        }
     }
 
     calculateFPS(currentTime) {
@@ -483,11 +544,109 @@ class RenderLoop {
         
         // Draw to canvas
         this.ctx.putImageData(imageData, 0, 0);
+        
+        // Draw marching ants selection if a tile is selected
+        if (this.selectedTileIndex !== null) {
+            this.drawMarchingAnts(frameNumber);
+        }
+    }
+
+    drawFrameWithStaticBackground() {
+        // Generate static pattern with frame 0 in Rust
+        this.imageBuffer.generate_pattern(0);
+        
+        // Get WASM memory buffer
+        const wasmMemory = this.wasmModule.memory;
+        const dataPtr = this.imageBuffer.data_ptr();
+        const dataLen = this.imageBuffer.data_len();
+        
+        // Create ImageData from WASM memory
+        const uint8Array = new Uint8ClampedArray(wasmMemory.buffer, dataPtr, dataLen);
+        const imageData = new ImageData(uint8Array, this.imageBuffer.width, this.imageBuffer.height);
+        
+        // Draw to canvas
+        this.ctx.putImageData(imageData, 0, 0);
+        
+        // Note: marching ants will be drawn separately in the animation loop
+    }
+
+    drawMarchingAnts(animationFrame = 0) {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            return;
+        }
+        
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        const tileWidth = this.imageBuffer.tile_width;
+        const tileHeight = this.imageBuffer.tile_height;
+        
+        // Calculate tile position on canvas
+        const tileX = tileData.col * tileWidth;
+        const tileY = tileData.row * tileHeight;
+        
+        // Save canvas state
+        this.ctx.save();
+        
+        // Set up marching ants style
+        const dashLength = 8;
+        const dashOffset = -(animationFrame * 0.5) % (dashLength * 2); // Animate dash offset
+        
+        this.ctx.setLineDash([dashLength, dashLength]);
+        this.ctx.lineDashOffset = dashOffset;
+        this.ctx.lineWidth = 2;
+        
+        // Draw white border (outer)
+        this.ctx.strokeStyle = 'white';
+        this.ctx.strokeRect(tileX - 1, tileY - 1, tileWidth + 2, tileHeight + 2);
+        
+        // Draw black border (inner) with opposite phase
+        this.ctx.lineDashOffset = dashOffset + dashLength;
+        this.ctx.strokeStyle = 'black';
+        this.ctx.strokeRect(tileX - 1, tileY - 1, tileWidth + 2, tileHeight + 2);
+        
+        // Restore canvas state
+        this.ctx.restore();
     }
 
     renderSingleFrame() {
         // Render a single frame without starting animation loop
         this.drawFrame(0); // Use frame 0 for static display
+        
+        // Start marching ants animation if a tile is selected and main animation isn't running
+        if (this.selectedTileIndex !== null && !this.running) {
+            this.startSelectionAnimation();
+        } else if (this.selectedTileIndex === null && this.selectionAnimationId !== null) {
+            this.stopSelectionAnimation();
+        }
+    }
+
+    startSelectionAnimation() {
+        if (this.selectionAnimationId !== null) {
+            return; // Already running
+        }
+        
+        const animate = () => {
+            if (this.selectedTileIndex !== null && !this.running) {
+                // Use frame 0 for static background pattern
+                this.drawFrameWithStaticBackground();
+                
+                // Use dynamic frame for marching ants animation
+                const animationFrame = Date.now() * 0.1;
+                this.drawMarchingAnts(animationFrame);
+                
+                this.selectionAnimationId = requestAnimationFrame(animate);
+            } else {
+                this.selectionAnimationId = null;
+            }
+        };
+        
+        this.selectionAnimationId = requestAnimationFrame(animate);
+    }
+
+    stopSelectionAnimation() {
+        if (this.selectionAnimationId !== null) {
+            cancelAnimationFrame(this.selectionAnimationId);
+            this.selectionAnimationId = null;
+        }
     }
 
     render(currentTime = performance.now()) {
