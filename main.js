@@ -762,6 +762,10 @@ async function main() {
     try {
         const renderLoop = new RenderLoop();
         await renderLoop.initialize();
+        
+        // Expose renderLoop globally for testing
+        window.renderLoop = renderLoop;
+        
         console.log('Application ready. Click Start to begin rendering.');
     } catch (error) {
         console.error('Failed to initialize application:', error);

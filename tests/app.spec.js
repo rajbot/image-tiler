@@ -294,4 +294,71 @@ test.describe('Fast Image Tiler Application', () => {
     await expect(page.locator('.stats-info')).toBeVisible();
     await expect(page.locator('.export-controls')).toBeVisible();
   });
+
+  // Scaling functionality tests
+  test('should show scale control only when tile is selected', async ({ page }) => {
+    // Initially scale control should be hidden
+    await expect(page.locator('#scale-control')).toBeHidden();
+    
+    // Load an image first (simplified - no actual file needed for UI test)
+    await page.evaluate(() => {
+      // Simulate loading a tile
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0
+        });
+        renderLoop.updateTileList();
+      }
+    });
+    
+    // Click on the tile in the list to select it
+    await page.click('.tile-item');
+    
+    // Scale control should now be visible
+    await expect(page.locator('#scale-control')).toBeVisible();
+    await expect(page.locator('#tile-scale')).toBeVisible();
+    await expect(page.locator('#tile-scale')).toHaveValue('100');
+  });
+
+
+
+
+
+
+
+  test('should have correct scale input attributes', async ({ page }) => {
+    // Load and select a tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Check input attributes
+    const scaleInput = page.locator('#tile-scale');
+    await expect(scaleInput).toHaveAttribute('type', 'number');
+    await expect(scaleInput).toHaveAttribute('min', '10');
+    await expect(scaleInput).toHaveAttribute('max', '500');
+    await expect(scaleInput).toHaveAttribute('step', '10');
+    
+    // Check that the % unit is displayed
+    await expect(page.locator('.scale-unit')).toHaveText('%');
+  });
 });
