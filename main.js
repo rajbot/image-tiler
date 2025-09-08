@@ -26,6 +26,7 @@ class RenderLoop {
         // Store multiple tile data - Map with tile index as key
         this.loadedTiles = new Map();
         this.nextTileIndex = 0; // Which tile position to load next image into
+        this.draggedTileIndex = null; // Track which tile is being dragged
         
         this.setupEventListeners();
     }
@@ -228,6 +229,54 @@ class RenderLoop {
         }
     }
 
+    async swapTiles(draggedIndex, targetIndex) {
+        if (draggedIndex === targetIndex) {
+            return; // No swap needed
+        }
+
+        // Get both tile data
+        const draggedTile = this.loadedTiles.get(draggedIndex);
+        const targetTile = this.loadedTiles.get(targetIndex);
+
+        if (!draggedTile || !targetTile) {
+            console.error('Invalid tile indices for swap:', draggedIndex, targetIndex);
+            return;
+        }
+
+        // Swap their grid positions (col, row)
+        const tempCol = draggedTile.col;
+        const tempRow = draggedTile.row;
+        draggedTile.col = targetTile.col;
+        draggedTile.row = targetTile.row;
+        targetTile.col = tempCol;
+        targetTile.row = tempRow;
+
+        try {
+            // Clear both tiles in Rust
+            await this.imageBuffer.clear_tile(draggedTile.col, draggedTile.row);
+            await this.imageBuffer.clear_tile(targetTile.col, targetTile.row);
+
+            // Reload both tiles in their new positions
+            await this.imageBuffer.load_image_from_bytes(draggedTile.imageData, draggedTile.col, draggedTile.row);
+            await this.imageBuffer.load_image_from_bytes(targetTile.imageData, targetTile.col, targetTile.row);
+
+            // Update the tile list display
+            this.updateTileList();
+
+            // Render to show the swapped positions
+            this.renderSingleFrame();
+
+            console.log(`Swapped tiles: (${tempCol},${tempRow}) ↔ (${draggedTile.col},${draggedTile.row})`);
+        } catch (error) {
+            console.error('Error swapping tiles:', error);
+            // Revert position swap on error
+            draggedTile.col = tempCol;
+            draggedTile.row = tempRow;
+            targetTile.col = tempCol;
+            targetTile.row = tempRow;
+        }
+    }
+
     updateTileList() {
         this.tileList.innerHTML = '';
         
@@ -238,6 +287,14 @@ class RenderLoop {
             for (const [tileIndex, tileData] of sortedTiles) {
                 const listItem = document.createElement('li');
                 listItem.className = 'tile-item';
+                listItem.draggable = true;
+                listItem.dataset.tileIndex = tileIndex;
+                
+                // Add drag handle
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'tile-drag-handle';
+                dragHandle.innerHTML = '⋮⋮';
+                dragHandle.title = 'Drag to reorder';
                 
                 const tileName = document.createElement('span');
                 tileName.className = 'tile-name';
@@ -250,6 +307,50 @@ class RenderLoop {
                 removeBtn.title = 'Remove tile';
                 removeBtn.addEventListener('click', () => this.removeTile(tileIndex));
                 
+                // Add drag event listeners
+                listItem.addEventListener('dragstart', (e) => {
+                    this.draggedTileIndex = parseInt(e.target.dataset.tileIndex);
+                    e.target.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', ''); // Required for Firefox
+                });
+                
+                listItem.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('dragging');
+                    this.draggedTileIndex = null;
+                    // Remove drag-over class from all items
+                    document.querySelectorAll('.tile-item').forEach(item => {
+                        item.classList.remove('drag-over');
+                    });
+                });
+                
+                listItem.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+                
+                listItem.addEventListener('dragenter', (e) => {
+                    e.preventDefault();
+                    if (this.draggedTileIndex !== null && 
+                        parseInt(e.target.closest('.tile-item').dataset.tileIndex) !== this.draggedTileIndex) {
+                        e.target.closest('.tile-item').classList.add('drag-over');
+                    }
+                });
+                
+                listItem.addEventListener('dragleave', (e) => {
+                    e.target.closest('.tile-item').classList.remove('drag-over');
+                });
+                
+                listItem.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const targetIndex = parseInt(e.target.closest('.tile-item').dataset.tileIndex);
+                    if (this.draggedTileIndex !== null && targetIndex !== this.draggedTileIndex) {
+                        this.swapTiles(this.draggedTileIndex, targetIndex);
+                    }
+                    e.target.closest('.tile-item').classList.remove('drag-over');
+                });
+                
+                listItem.appendChild(dragHandle);
                 listItem.appendChild(tileName);
                 listItem.appendChild(removeBtn);
                 this.tileList.appendChild(listItem);

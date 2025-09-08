@@ -174,6 +174,29 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             font-size: 13px;
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+        .tile-item:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.15);
+        }
+        .tile-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            z-index: 1000;
+        }
+        .tile-item.drag-over {
+            border-color: #28a745;
+            background-color: #e8f5e8;
+            border-style: dashed;
+        }
+        .tile-drag-handle {
+            color: #999;
+            font-size: 14px;
+            margin-right: 8px;
+            cursor: move;
+            user-select: none;
         }
         .tile-name {
             flex: 1;
