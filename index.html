@@ -15,9 +15,44 @@
             background-color: white;
         }
         .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 18px;
             font-weight: bold;
             color: #333;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .stats-info {
+            display: flex;
+            gap: 20px;
+        }
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #export-format {
+            padding: 5px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+        }
+        #export-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: white;
+            font-weight: 600;
+        }
+        #export-btn:hover {
+            background-color: #218838;
         }
         .controls {
             display: flex;
@@ -281,8 +316,17 @@
         <div class="center-content">
             <h1>Fast Image Tiler - Rust WebAssembly Demo</h1>
             <div class="stats">
-                <div id="fps">FPS: 0</div>
-                <div id="frame-count">Frame: 0</div>
+                <div class="stats-info">
+                    <div id="fps">FPS: 0</div>
+                    <div id="frame-count">Frame: 0</div>
+                </div>
+                <div class="export-controls">
+                    <select id="export-format">
+                        <option value="png">PNG</option>
+                        <option value="jpeg">JPG</option>
+                    </select>
+                    <button id="export-btn">Export Image</button>
+                </div>
             </div>
             <canvas id="canvas" width="800" height="800"></canvas>
             <div class="controls">

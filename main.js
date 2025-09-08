@@ -37,6 +37,11 @@ class RenderLoop {
         this.loadImageBtn.addEventListener('click', () => this.fileInput.click());
         this.fileInput.addEventListener('change', (e) => this.handleImageLoad(e));
         
+        // Add export functionality
+        const exportBtn = document.getElementById('export-btn');
+        const exportFormat = document.getElementById('export-format');
+        exportBtn.addEventListener('click', () => this.exportCanvas(exportFormat.value));
+        
         // Add Enter key listeners to grid input fields
         const gridInputs = ['tile-width', 'tile-height', 'num-cols', 'num-rows'];
         gridInputs.forEach(inputId => {
@@ -391,6 +396,38 @@ class RenderLoop {
         this.renderSingleFrame();
         
         console.log(`Tile removed successfully from position (${tileData.col}, ${tileData.row})`);
+    }
+
+    exportCanvas(format) {
+        // Get the canvas element
+        const canvas = this.canvas;
+        
+        // Convert to desired format
+        const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+        const quality = format === 'png' ? 1.0 : 0.9; // High quality for JPEG
+        
+        // Convert canvas to blob
+        canvas.toBlob((blob) => {
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `tile-export-${timestamp}.${format === 'jpeg' ? 'jpg' : format}`;
+            
+            // Trigger download
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up
+            URL.revokeObjectURL(url);
+            
+            console.log(`Canvas exported as ${filename}`);
+        }, mimeType, quality);
     }
 
     start() {
