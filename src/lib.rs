@@ -50,6 +50,16 @@ impl ImageBuffer {
         self.height
     }
 
+    #[wasm_bindgen(getter)]
+    pub fn tile_width(&self) -> u32 {
+        self.tile_width
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn tile_height(&self) -> u32 {
+        self.tile_height
+    }
+
     #[wasm_bindgen]
     pub fn data_ptr(&self) -> *const u8 {
         self.data.as_ptr()
