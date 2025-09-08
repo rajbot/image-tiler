@@ -81,13 +81,58 @@
             gap: 20px;
             padding: 20px;
         }
+        .grid-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .input-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
     </style>
 </head>
 <body>
     <div class="main-layout">
         <div class="sidebar sidebar-left">
             <h2>Grid Options</h2>
-            <p>Grid configuration options will go here.</p>
+            <div class="grid-controls">
+                <div class="input-group">
+                    <label for="tile-width">Tile Width:</label>
+                    <input type="number" id="tile-width" value="400" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="tile-height">Tile Height:</label>
+                    <input type="number" id="tile-height" value="400" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="num-cols">Columns:</label>
+                    <input type="number" id="num-cols" value="2" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="num-rows">Rows:</label>
+                    <input type="number" id="num-rows" value="2" min="1">
+                </div>
+            </div>
         </div>
         
         <div class="center-content">
