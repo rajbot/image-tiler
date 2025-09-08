@@ -15,3 +15,9 @@ version = "0.3"
 features = [
   "console",
 ]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wee-alloc = false

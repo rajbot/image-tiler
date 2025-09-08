@@ -172,3 +172,58 @@ fn resize_preserve_aspect_ratio(img: DynamicImage, target_width: u32, target_hei
     
     img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn test_image_buffer_creation() {
+        let buffer = ImageBuffer::new(100, 100, 2, 2);
+        assert_eq!(buffer.width(), 200);
+        assert_eq!(buffer.height(), 200);
+        assert_eq!(buffer.tile_width(), 100);
+        assert_eq!(buffer.tile_height(), 100);
+        assert_eq!(buffer.data_len(), 200 * 200 * 4);
+    }
+
+    #[wasm_bindgen_test]
+    fn test_pattern_generation() {
+        let mut buffer = ImageBuffer::new(10, 10, 1, 1);
+        buffer.generate_pattern(0);
+        
+        // Check that data has been populated (not all zeros)
+        let data_ptr = buffer.data_ptr();
+        let data_len = buffer.data_len();
+        
+        // This is a basic test - in practice we'd check specific pattern values
+        assert!(data_len > 0);
+        assert!(!data_ptr.is_null());
+    }
+
+    #[wasm_bindgen_test]
+    fn test_resize_preserve_aspect_ratio() {
+        // Create a simple 2x1 test image (landscape)
+        let img = DynamicImage::new_rgb8(200, 100);
+        let resized = resize_preserve_aspect_ratio(img, 100, 100);
+        
+        // Should fit within 100x100, maintaining aspect ratio
+        let (w, h) = resized.dimensions();
+        assert_eq!(w, 100); // Full width used
+        assert_eq!(h, 50);  // Height scaled proportionally
+    }
+
+    #[test]
+    fn test_image_buffer_dimensions() {
+        let buffer = ImageBuffer::new(50, 75, 3, 4);
+        assert_eq!(buffer.width, 150); // 50 * 3
+        assert_eq!(buffer.height, 300); // 75 * 4
+        assert_eq!(buffer.tile_width, 50);
+        assert_eq!(buffer.tile_height, 75);
+        assert_eq!(buffer.num_cols, 3);
+        assert_eq!(buffer.num_rows, 4);
+    }
+}

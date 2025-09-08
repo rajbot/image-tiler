@@ -1,0 +1,19 @@
+{
+  "name": "fast-image-tiler",
+  "version": "1.0.0",
+  "description": "WebAssembly-based image tiler with dynamic patterns and image loading",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "build": "wasm-pack build --target web --out-dir pkg",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "keywords": ["webassembly", "rust", "canvas", "image-processing"],
+  "author": "Claude Code",
+  "license": "MIT"
+}
