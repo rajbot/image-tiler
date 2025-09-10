@@ -24,6 +24,9 @@ class RenderLoop {
         this.backgroundOpacityInput = document.getElementById('background-opacity');
         this.backgroundOpacityValue = document.getElementById('background-opacity-value');
         
+        // Interaction help text
+        this.interactionHelp = document.getElementById('interaction-help');
+        
         this.running = false;
         this.frameCount = 0;
         this.lastTime = 0;
@@ -887,6 +890,9 @@ class RenderLoop {
             emptyMessage.textContent = 'No tiles loaded';
             this.tileList.appendChild(emptyMessage);
         }
+        
+        // Update interaction help text when tile list changes
+        this.updateInteractionHelp();
     }
 
     updateTileListSelection() {
@@ -923,6 +929,27 @@ class RenderLoop {
             this.tileOffsetXInput.setAttribute('max', `${tileWidth}`);
             this.tileOffsetYInput.setAttribute('min', `-${tileHeight}`);
             this.tileOffsetYInput.setAttribute('max', `${tileHeight}`);
+        }
+        
+        // Update interaction help text whenever tile selection changes
+        this.updateInteractionHelp();
+    }
+
+    updateInteractionHelp() {
+        const hasTiles = this.loadedTiles.size > 0;
+        const hasSelection = this.selectedTileIndex !== null && this.loadedTiles.has(this.selectedTileIndex);
+        
+        if (!hasTiles) {
+            // No tiles loaded - hide help text
+            this.interactionHelp.style.display = 'none';
+        } else if (!hasSelection) {
+            // Tiles loaded but nothing selected
+            this.interactionHelp.textContent = 'Click to select tile';
+            this.interactionHelp.style.display = 'block';
+        } else {
+            // Tile is selected
+            this.interactionHelp.textContent = 'Click and drag to pan image. Pinch to zoom.';
+            this.interactionHelp.style.display = 'block';
         }
     }
 

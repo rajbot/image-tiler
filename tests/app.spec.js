@@ -302,9 +302,13 @@ test.describe('Fast Image Tiler Application', () => {
     const exportControls = page.locator('.export-controls');
     await expect(exportControls).toBeVisible();
     
-    // Check that both stats-info and export-controls are present
-    await expect(page.locator('.stats-info')).toBeVisible();
+    // Check that stats-info div exists (even though FPS/Frame may be hidden initially)
+    await expect(page.locator('.stats-info')).toBeAttached();
     await expect(page.locator('.export-controls')).toBeVisible();
+    
+    // FPS and frame counter should be hidden initially
+    await expect(page.locator('#fps')).toBeHidden();
+    await expect(page.locator('#frame-count')).toBeHidden();
   });
 
   // Scaling functionality tests
@@ -1002,5 +1006,46 @@ test.describe('Fast Image Tiler Application', () => {
     expect(backgroundColorState.r).toBe(255);
     expect(backgroundColorState.g).toBe(0);
     expect(backgroundColorState.b).toBe(0);
+  });
+
+  // Contextual help text tests
+  test('should show contextual help text based on tile state', async ({ page }) => {
+    // Initially no help text should be visible (no tiles loaded)
+    await expect(page.locator('#interaction-help')).toBeHidden();
+    
+    // Load a tile by simulating JavaScript tile loading
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0
+        });
+        renderLoop.updateTileList();
+      }
+    });
+    
+    // Give Safari extra time to process the DOM updates
+    await page.waitForTimeout(500);
+    
+    // Help text should now show "Click to select tile" (tiles loaded but none selected)
+    await expect(page.locator('#interaction-help')).toBeVisible();
+    await expect(page.locator('#interaction-help')).toHaveText('Click to select tile');
+    
+    // Click on the tile to select it
+    await page.click('.tile-item');
+    
+    // Help text should change to pan/zoom instructions
+    await expect(page.locator('#interaction-help')).toHaveText('Click and drag to pan image. Pinch to zoom.');
+    
+    // Remove the tile
+    await page.click('.tile-remove');
+    
+    // Help text should be hidden again (no tiles loaded)
+    await expect(page.locator('#interaction-help')).toBeHidden();
   });
 });

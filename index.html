@@ -30,8 +30,17 @@
         }
         .image-controls-stats {
             display: flex;
-            gap: 10px;
-            align-items: center;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .interaction-help {
+            font-size: 16px;
+            color: #666;
+            font-style: italic;
+            margin: 0;
+            padding: 0;
+            line-height: 1.2;
         }
         .export-controls {
             display: flex;
@@ -548,6 +557,7 @@
                 <div class="image-controls-stats">
                     <button id="load-image-btn">Load Image</button>
                     <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
+                    <p id="interaction-help" class="interaction-help" style="display: none;"></p>
                 </div>
                 <div class="stats-info">
                     <div id="fps">FPS: 0</div>
