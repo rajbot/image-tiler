@@ -1290,6 +1290,9 @@ class RenderLoop {
         this.fpsElement.style.display = 'none';
         this.frameCountElement.style.display = 'none';
         
+        // Replace animated pattern with solid background
+        this.drawFrameWithStaticBackground();
+        
         // Restart selection animation if a tile is selected and not dragging
         if (this.selectedTileIndex !== null && !this.isDraggingOffset) {
             this.startSelectionAnimation();
