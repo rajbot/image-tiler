@@ -361,4 +361,404 @@ test.describe('Fast Image Tiler Application', () => {
     // Check that the % unit is displayed
     await expect(page.locator('.scale-unit')).toHaveText('%');
   });
+
+  // Offset functionality tests
+  test('should show offset controls only when tile is selected', async ({ page }) => {
+    // Initially offset controls should be hidden
+    await expect(page.locator('#offset-controls')).toBeHidden();
+    
+    // Load an image first
+    await page.evaluate(() => {
+      // Simulate loading a tile
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.updateTileList();
+      }
+    });
+    
+    // Click on the tile in the list to select it
+    await page.click('.tile-item');
+    
+    // Offset controls should now be visible
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    await expect(page.locator('#tile-offset-x')).toBeVisible();
+    await expect(page.locator('#tile-offset-y')).toBeVisible();
+    await expect(page.locator('#tile-offset-x')).toHaveValue('0');
+    await expect(page.locator('#tile-offset-y')).toHaveValue('0');
+  });
+
+  test('should have correct offset input attributes', async ({ page }) => {
+    // Load and select a tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Check offset X input attributes
+    const offsetXInput = page.locator('#tile-offset-x');
+    await expect(offsetXInput).toHaveAttribute('type', 'number');
+    await expect(offsetXInput).toHaveAttribute('min', '-200');
+    await expect(offsetXInput).toHaveAttribute('max', '200');
+    await expect(offsetXInput).toHaveAttribute('step', '1');
+    
+    // Check offset Y input attributes
+    const offsetYInput = page.locator('#tile-offset-y');
+    await expect(offsetYInput).toHaveAttribute('type', 'number');
+    await expect(offsetYInput).toHaveAttribute('min', '-200');
+    await expect(offsetYInput).toHaveAttribute('max', '200');
+    await expect(offsetYInput).toHaveAttribute('step', '1');
+    
+    // Check that the px units are displayed
+    const offsetUnits = page.locator('.offset-unit');
+    await expect(offsetUnits.first()).toHaveText('px');
+    await expect(offsetUnits.last()).toHaveText('px');
+  });
+
+  test('should update offset values when changing inputs at 50% scale', async ({ page }) => {
+    // Load and select a tile at 50% scale
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 0.5, // 50% scale
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Wait a moment for DOM to update
+    await page.waitForTimeout(100);
+    
+    // Wait for offset controls to be visible
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    
+    // Change offset X value
+    await page.fill('#tile-offset-x', '25');
+    await page.press('#tile-offset-x', 'Enter');
+    
+    // Wait a moment for processing
+    await page.waitForTimeout(100);
+    
+    // Verify the offset was stored in tile data
+    const offsetXStored = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return renderLoop?.loadedTiles.get(0)?.offsetX;
+    });
+    expect(offsetXStored).toBe(25);
+    
+    // Change offset Y value  
+    await page.fill('#tile-offset-y', '-15');
+    await page.press('#tile-offset-y', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify both offsets are stored correctly
+    const tileData = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return {
+        offsetX: renderLoop?.loadedTiles.get(0)?.offsetX,
+        offsetY: renderLoop?.loadedTiles.get(0)?.offsetY,
+        scale: renderLoop?.loadedTiles.get(0)?.scale
+      };
+    });
+    expect(tileData.offsetX).toBe(25);
+    expect(tileData.offsetY).toBe(-15);
+    expect(tileData.scale).toBe(0.5);
+  });
+
+  test('should update offset values when changing inputs at 100% scale', async ({ page }) => {
+    // Load and select a tile at 100% scale
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0, // 100% scale
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Wait a moment for DOM to update
+    await page.waitForTimeout(100);
+    
+    // Wait for offset controls to be visible
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    
+    // Change offset X value
+    await page.fill('#tile-offset-x', '50');
+    await page.press('#tile-offset-x', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify the offset was stored
+    const offsetXStored = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return renderLoop?.loadedTiles.get(0)?.offsetX;
+    });
+    expect(offsetXStored).toBe(50);
+    
+    // Change offset Y value  
+    await page.fill('#tile-offset-y', '-30');
+    await page.press('#tile-offset-y', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify both offsets work at 100% scale
+    const tileData = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return {
+        offsetX: renderLoop?.loadedTiles.get(0)?.offsetX,
+        offsetY: renderLoop?.loadedTiles.get(0)?.offsetY,
+        scale: renderLoop?.loadedTiles.get(0)?.scale
+      };
+    });
+    expect(tileData.offsetX).toBe(50);
+    expect(tileData.offsetY).toBe(-30);
+    expect(tileData.scale).toBe(1.0);
+  });
+
+  test('should update offset values when changing inputs at 150% scale', async ({ page }) => {
+    // Load and select a tile at 150% scale
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.5, // 150% scale
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Wait a moment for DOM to update
+    await page.waitForTimeout(100);
+    
+    // Wait for offset controls to be visible
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    
+    // Change offset X value
+    await page.fill('#tile-offset-x', '75');
+    await page.press('#tile-offset-x', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify the offset was stored
+    const offsetXStored = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return renderLoop?.loadedTiles.get(0)?.offsetX;
+    });
+    expect(offsetXStored).toBe(75);
+    
+    // Change offset Y value  
+    await page.fill('#tile-offset-y', '-50');
+    await page.press('#tile-offset-y', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify both offsets work at >100% scale
+    const tileData = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return {
+        offsetX: renderLoop?.loadedTiles.get(0)?.offsetX,
+        offsetY: renderLoop?.loadedTiles.get(0)?.offsetY,
+        scale: renderLoop?.loadedTiles.get(0)?.scale
+      };
+    });
+    expect(tileData.offsetX).toBe(75);
+    expect(tileData.offsetY).toBe(-50);
+    expect(tileData.scale).toBe(1.5);
+  });
+
+  test('should validate offset input ranges', async ({ page }) => {
+    // Mock alert to capture validation messages
+    await page.evaluate(() => {
+      window.alertMessages = [];
+      window.alert = (message) => window.alertMessages.push(message);
+    });
+    
+    // Load and select a tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Try to set offset X beyond maximum (should be clamped/validated)
+    await page.fill('#tile-offset-x', '250');
+    await page.press('#tile-offset-x', 'Enter');
+    
+    await page.waitForTimeout(200);
+    
+    // Check if validation occurred
+    const alertMessages = await page.evaluate(() => window.alertMessages);
+    expect(alertMessages.length).toBeGreaterThan(0);
+    expect(alertMessages[0]).toContain('Offset must be between -200px and 200px');
+    
+    // Verify the input was reset to valid value
+    await expect(page.locator('#tile-offset-x')).toHaveValue('0');
+  });
+
+  test('should preserve offsets when changing scale levels', async ({ page }) => {
+    // Load and select a tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Wait a moment for DOM to update
+    await page.waitForTimeout(100);
+    
+    // Wait for offset controls to be visible
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    
+    // Set initial offset values
+    await page.fill('#tile-offset-x', '30');
+    await page.fill('#tile-offset-y', '20');
+    await page.press('#tile-offset-x', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Change scale to 50%
+    await page.fill('#tile-scale', '50');
+    await page.press('#tile-scale', 'Enter');
+    
+    await page.waitForTimeout(100);
+    
+    // Verify offsets are preserved after scale change
+    const tileDataAfterScale = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return {
+        offsetX: renderLoop?.loadedTiles.get(0)?.offsetX,
+        offsetY: renderLoop?.loadedTiles.get(0)?.offsetY,
+        scale: renderLoop?.loadedTiles.get(0)?.scale
+      };
+    });
+    expect(tileDataAfterScale.offsetX).toBe(30);
+    expect(tileDataAfterScale.offsetY).toBe(20);
+    expect(tileDataAfterScale.scale).toBe(0.5);
+    
+    // Verify UI inputs show preserved values
+    await expect(page.locator('#tile-offset-x')).toHaveValue('30');
+    await expect(page.locator('#tile-offset-y')).toHaveValue('20');
+  });
+
+  test('should display offset controls with correct labels', async ({ page }) => {
+    // Load and select a tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Wait a moment for DOM to update
+    await page.waitForTimeout(100);
+    
+    // Wait for controls to be visible first
+    await expect(page.locator('#scale-control')).toBeVisible();
+    await expect(page.locator('#offset-controls')).toBeVisible();
+    
+    // Check offset control labels
+    await expect(page.locator('label[for="tile-offset-x"]')).toHaveText('Offset X:');
+    await expect(page.locator('label[for="tile-offset-y"]')).toHaveText('Offset Y:');
+    
+    // Check that offset controls are positioned after scale control
+    const scaleControl = page.locator('#scale-control');
+    const offsetControls = page.locator('#offset-controls');
+    
+    // Verify offset controls appear below scale control in DOM order
+    const scaleRect = await scaleControl.boundingBox();
+    const offsetRect = await offsetControls.boundingBox();
+    
+    expect(offsetRect.y).toBeGreaterThan(scaleRect.y);
+  });
 });
