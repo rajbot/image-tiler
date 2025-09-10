@@ -8,8 +8,8 @@ test.describe('Fast Image Tiler Application', () => {
   });
 
   test('should load the application and display title', async ({ page }) => {
-    await expect(page).toHaveTitle(/Fast Image Tiler/);
-    await expect(page.locator('h1')).toContainText('Fast Image Tiler - Rust WebAssembly Demo');
+    await expect(page).toHaveTitle(/Open-source Image Tiler/);
+    await expect(page.locator('h1')).toContainText('Open-source Image Tiler');
   });
 
   test('should display initial UI elements', async ({ page }) => {
