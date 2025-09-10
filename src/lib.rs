@@ -197,6 +197,110 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
+    pub fn load_image_from_bytes_with_scale_and_offset(&mut self, image_data: &[u8], col: u32, row: u32, scale: f32, offset_x: i32, offset_y: i32) -> Result<(), JsValue> {
+        // Validate tile position
+        if col >= self.num_cols || row >= self.num_rows {
+            return Err(JsValue::from_str(&format!("Invalid tile position ({}, {}). Grid is {}x{}", col, row, self.num_cols, self.num_rows)));
+        }
+        
+        let img = image::load_from_memory(image_data)
+            .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
+        
+        // Calculate scaled dimensions
+        let scaled_width = (self.tile_width as f32 * scale) as u32;
+        let scaled_height = (self.tile_height as f32 * scale) as u32;
+        
+        let resized_img = resize_preserve_aspect_ratio(img, scaled_width, scaled_height);
+        let rgba_img = resized_img.to_rgba8();
+        
+        // Get actual dimensions after aspect ratio preserving resize
+        let actual_width = rgba_img.width() as u32;
+        let actual_height = rgba_img.height() as u32;
+        
+        // Calculate absolute position in the full buffer
+        let tile_start_x = (col * self.tile_width) as usize;
+        let tile_start_y = (row * self.tile_height) as usize;
+        
+        // Remove any existing tile info for this position, then add new one
+        self.loaded_tiles.retain(|tile| tile.col != col || tile.row != row);
+        self.loaded_tiles.push(TileInfo {
+            col,
+            row,
+            has_image: true,
+        });
+        
+        // Calculate positioning with user offset - use a unified approach for all scales
+        // Always position the image within the tile space, allowing offsets to move it around
+        let base_dst_x = if actual_width <= self.tile_width {
+            // Image is smaller or equal to tile - center it
+            (self.tile_width - actual_width) / 2
+        } else {
+            // Image is larger - no base destination offset, will crop from source
+            0
+        };
+        
+        let base_dst_y = if actual_height <= self.tile_height {
+            // Image is smaller or equal to tile - center it  
+            (self.tile_height - actual_height) / 2
+        } else {
+            // Image is larger - no base destination offset, will crop from source
+            0
+        };
+        
+        // Apply user offset to destination positioning
+        let dst_offset_x = (base_dst_x as i32 + offset_x).max(-(actual_width as i32)).min(self.tile_width as i32) as u32;
+        let dst_offset_y = (base_dst_y as i32 + offset_y).max(-(actual_height as i32)).min(self.tile_height as i32) as u32;
+        
+        // Calculate source cropping if image extends beyond tile bounds
+        let src_offset_x = if actual_width > self.tile_width {
+            // Image is larger than tile - crop from center, adjusted by offset effect
+            let base_crop = (actual_width - self.tile_width) / 2;
+            (base_crop as i32 - offset_x).max(0).min((actual_width.saturating_sub(self.tile_width)) as i32) as u32
+        } else {
+            0
+        };
+        
+        let src_offset_y = if actual_height > self.tile_height {
+            // Image is larger than tile - crop from center, adjusted by offset effect  
+            let base_crop = (actual_height - self.tile_height) / 2;
+            (base_crop as i32 - offset_y).max(0).min((actual_height.saturating_sub(self.tile_height)) as i32) as u32
+        } else {
+            0
+        };
+
+        // Clear the entire target tile area first
+        for y in 0..self.tile_height as usize {
+            for x in 0..self.tile_width as usize {
+                let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
+                
+                if dst_index + 3 < self.data.len() {
+                    // Calculate source coordinates
+                    let src_x = x as i32 - dst_offset_x as i32 + src_offset_x as i32;
+                    let src_y = y as i32 - dst_offset_y as i32 + src_offset_y as i32;
+                    
+                    if src_x >= 0 && src_y >= 0 && 
+                       src_x < actual_width as i32 && src_y < actual_height as i32 {
+                        // Copy pixel from image
+                        let pixel = rgba_img.get_pixel(src_x as u32, src_y as u32);
+                        self.data[dst_index] = pixel[0];     // R
+                        self.data[dst_index + 1] = pixel[1]; // G
+                        self.data[dst_index + 2] = pixel[2]; // B
+                        self.data[dst_index + 3] = pixel[3]; // A
+                    } else {
+                        // Transparent pixel for areas outside the image
+                        self.data[dst_index] = 0;
+                        self.data[dst_index + 1] = 0;
+                        self.data[dst_index + 2] = 0;
+                        self.data[dst_index + 3] = 0;
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    #[wasm_bindgen]
     pub fn clear_tile(&mut self, col: u32, row: u32) -> Result<(), JsValue> {
         // Validate tile position
         if col >= self.num_cols || row >= self.num_rows {

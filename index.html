@@ -346,6 +346,47 @@
             color: #666;
             font-weight: 500;
         }
+        .offset-controls {
+            margin-top: 15px;
+        }
+        .offset-control {
+            margin-bottom: 10px;
+        }
+        .offset-control:last-child {
+            margin-bottom: 0;
+        }
+        .offset-control label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .offset-input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .offset-input-group input {
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            transition: border-color 0.2s;
+            width: 60px;
+            text-align: center;
+        }
+        .offset-input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        .offset-unit {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -421,6 +462,22 @@
                     <div class="scale-input-group">
                         <input type="number" id="tile-scale" min="10" max="500" step="10" value="100">
                         <span class="scale-unit">%</span>
+                    </div>
+                </div>
+                <div id="offset-controls" class="offset-controls" style="display: none;">
+                    <div class="offset-control">
+                        <label for="tile-offset-x">Offset X:</label>
+                        <div class="offset-input-group">
+                            <input type="number" id="tile-offset-x" min="-200" max="200" step="1" value="0">
+                            <span class="offset-unit">px</span>
+                        </div>
+                    </div>
+                    <div class="offset-control">
+                        <label for="tile-offset-y">Offset Y:</label>
+                        <div class="offset-input-group">
+                            <input type="number" id="tile-offset-y" min="-200" max="200" step="1" value="0">
+                            <span class="offset-unit">px</span>
+                        </div>
                     </div>
                 </div>
             </div>

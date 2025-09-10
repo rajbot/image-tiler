@@ -14,6 +14,9 @@ class RenderLoop {
         this.selectedTileInfo = document.getElementById('selected-tile-info');
         this.scaleControl = document.getElementById('scale-control');
         this.tileScaleInput = document.getElementById('tile-scale');
+        this.offsetControls = document.getElementById('offset-controls');
+        this.tileOffsetXInput = document.getElementById('tile-offset-x');
+        this.tileOffsetYInput = document.getElementById('tile-offset-y');
         
         this.running = false;
         this.frameCount = 0;
@@ -62,6 +65,20 @@ class RenderLoop {
         this.tileScaleInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 this.updateTileScale();
+            }
+        });
+        
+        // Add offset input event listeners
+        this.tileOffsetXInput.addEventListener('change', () => this.updateTileOffset());
+        this.tileOffsetXInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.updateTileOffset();
+            }
+        });
+        this.tileOffsetYInput.addEventListener('change', () => this.updateTileOffset());
+        this.tileOffsetYInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.updateTileOffset();
             }
         });
         
@@ -198,7 +215,9 @@ class RenderLoop {
                 tileIndex: tileIndex,
                 col: col,
                 row: row,
-                scale: 1.0 // Default scale 100%
+                scale: 1.0, // Default scale 100%
+                offsetX: 0, // Default offset X 0px
+                offsetY: 0  // Default offset Y 0px
             });
             
             // Update tile list display
@@ -277,11 +296,13 @@ class RenderLoop {
             // Reload valid tiles
             for (const { tileIndex, tileData, col, row } of tilesToReload) {
                 try {
-                    await this.imageBuffer.load_image_from_bytes_with_scale(
+                    await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
                         tileData.imageData, 
                         col, 
                         row, 
-                        tileData.scale || 1.0
+                        tileData.scale || 1.0,
+                        tileData.offsetX || 0,
+                        tileData.offsetY || 0
                     );
                     // Update tile data with potentially new position
                     this.loadedTiles.set(tileIndex, {
@@ -338,18 +359,22 @@ class RenderLoop {
             await this.imageBuffer.clear_tile(draggedTile.col, draggedTile.row);
             await this.imageBuffer.clear_tile(targetTile.col, targetTile.row);
 
-            // Reload both tiles in their new positions with their scales
-            await this.imageBuffer.load_image_from_bytes_with_scale(
+            // Reload both tiles in their new positions with their scales and offsets
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
                 draggedTile.imageData, 
                 draggedTile.col, 
                 draggedTile.row, 
-                draggedTile.scale || 1.0
+                draggedTile.scale || 1.0,
+                draggedTile.offsetX || 0,
+                draggedTile.offsetY || 0
             );
-            await this.imageBuffer.load_image_from_bytes_with_scale(
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
                 targetTile.imageData, 
                 targetTile.col, 
                 targetTile.row, 
-                targetTile.scale || 1.0
+                targetTile.scale || 1.0,
+                targetTile.offsetX || 0,
+                targetTile.offsetY || 0
             );
 
             // Update the tile list display
@@ -508,11 +533,15 @@ class RenderLoop {
         if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
             this.selectedTileInfo.innerHTML = '<em>No tile selected</em>';
             this.scaleControl.style.display = 'none';
+            this.offsetControls.style.display = 'none';
         } else {
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.selectedTileInfo.textContent = `Selected: ${tileData.fileName}`;
             this.scaleControl.style.display = 'block';
+            this.offsetControls.style.display = 'block';
             this.tileScaleInput.value = Math.round(tileData.scale * 100);
+            this.tileOffsetXInput.value = tileData.offsetX || 0;
+            this.tileOffsetYInput.value = tileData.offsetY || 0;
         }
     }
 
@@ -541,12 +570,14 @@ class RenderLoop {
             // Update scale in tile data
             tileData.scale = newScale;
 
-            // Reload image with new scale
-            await this.imageBuffer.load_image_from_bytes_with_scale(
+            // Reload image with new scale and existing offsets
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
                 tileData.imageData, 
                 tileData.col, 
                 tileData.row, 
-                newScale
+                newScale,
+                tileData.offsetX || 0,
+                tileData.offsetY || 0
             );
 
             // Render to show updated scale
@@ -560,6 +591,61 @@ class RenderLoop {
             // Reset to previous scale
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.tileScaleInput.value = Math.round(tileData.scale * 100);
+        }
+    }
+
+    async updateTileOffset() {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            return;
+        }
+
+        const newOffsetX = parseInt(this.tileOffsetXInput.value);
+        const newOffsetY = parseInt(this.tileOffsetYInput.value);
+        
+        if (isNaN(newOffsetX) || isNaN(newOffsetY) || 
+            newOffsetX < -200 || newOffsetX > 200 || 
+            newOffsetY < -200 || newOffsetY > 200) {
+            alert('Offset must be between -200px and 200px');
+            // Reset to current offsets
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.tileOffsetXInput.value = tileData.offsetX || 0;
+            this.tileOffsetYInput.value = tileData.offsetY || 0;
+            return;
+        }
+
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        
+        if (tileData.offsetX === newOffsetX && tileData.offsetY === newOffsetY) {
+            return; // No change
+        }
+
+        try {
+            // Update offsets in tile data
+            tileData.offsetX = newOffsetX;
+            tileData.offsetY = newOffsetY;
+
+            // Reload image with new offsets and existing scale
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
+                tileData.imageData, 
+                tileData.col, 
+                tileData.row, 
+                tileData.scale || 1.0,
+                newOffsetX,
+                newOffsetY
+            );
+
+            // Render to show updated offset
+            this.renderSingleFrame();
+
+            console.log(`Tile offset updated to (${newOffsetX}, ${newOffsetY}) for tile at (${tileData.col}, ${tileData.row})`);
+        } catch (error) {
+            console.error('Failed to update tile offset:', error);
+            alert('Failed to update tile offset: ' + error.message);
+            
+            // Reset to previous offsets
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.tileOffsetXInput.value = tileData.offsetX || 0;
+            this.tileOffsetYInput.value = tileData.offsetY || 0;
         }
     }
 
