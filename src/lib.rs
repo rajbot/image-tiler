@@ -445,11 +445,7 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
-    pub fn get_proxy_dimensions(
-        &self,
-        image_data: &[u8],
-        scale: f32,
-    ) -> Result<Vec<u32>, JsValue> {
+    pub fn get_proxy_dimensions(&self, image_data: &[u8], scale: f32) -> Result<Vec<u32>, JsValue> {
         // Decode the image to get dimensions
         let img = image::load_from_memory(image_data)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
@@ -460,7 +456,7 @@ impl ImageBuffer {
 
         // Get the actual dimensions after aspect ratio preserving resize
         let resized_img = resize_preserve_aspect_ratio(img, scaled_width, scaled_height);
-        
+
         // Return [width, height]
         Ok(vec![resized_img.width(), resized_img.height()])
     }
@@ -489,7 +485,8 @@ impl ImageBuffer {
         if rgba_data.len() != expected_len {
             return Err(JsValue::from_str(&format!(
                 "Invalid RGBA data length. Expected {}, got {}",
-                expected_len, rgba_data.len()
+                expected_len,
+                rgba_data.len()
             )));
         }
 
@@ -520,7 +517,11 @@ impl ImageBuffer {
                     let src_x = x as i32 - center_x - offset_x;
                     let src_y = y as i32 - center_y - offset_y;
 
-                    if src_x >= 0 && src_y >= 0 && src_x < proxy_width as i32 && src_y < proxy_height as i32 {
+                    if src_x >= 0
+                        && src_y >= 0
+                        && src_x < proxy_width as i32
+                        && src_y < proxy_height as i32
+                    {
                         // Copy pixel from proxy RGBA data
                         let src_index = ((src_y as u32 * proxy_width + src_x as u32) * 4) as usize;
                         self.data[dst_index] = rgba_data[src_index]; // R
