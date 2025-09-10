@@ -549,7 +549,8 @@ impl ImageBuffer {
                         && src_y < params.proxy_height as i32
                     {
                         // Copy pixel from proxy RGBA data
-                        let src_index = ((src_y as u32 * params.proxy_width + src_x as u32) * 4) as usize;
+                        let src_index =
+                            ((src_y as u32 * params.proxy_width + src_x as u32) * 4) as usize;
                         self.data[dst_index] = rgba_data[src_index]; // R
                         self.data[dst_index + 1] = rgba_data[src_index + 1]; // G
                         self.data[dst_index + 2] = rgba_data[src_index + 2]; // B
