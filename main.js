@@ -571,8 +571,8 @@ class RenderLoop {
             
             const { col, row } = this.getTilePosition(tileIndex);
             
-            // Load image into Rust at specific tile position
-            await this.imageBuffer.load_image_from_bytes(uint8Array, col, row);
+            // Load image into Rust at specific tile position with proper centering
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(uint8Array, col, row, 1.0, 0, 0);
             
             // Store tile data
             this.loadedTiles.set(tileIndex, {
