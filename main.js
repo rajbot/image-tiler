@@ -64,6 +64,9 @@ class RenderLoop {
                 this.updateTileScale();
             }
         });
+        
+        // Add canvas click handler for tile selection
+        this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
     }
 
     // Helper method to calculate grid position from tile index
@@ -93,6 +96,74 @@ class RenderLoop {
             }
         }
         return null; // No available slots
+    }
+    
+    // Handle canvas clicks to select tiles
+    handleCanvasClick(event) {
+        // Don't handle clicks during drag operations
+        if (this.draggedTileIndex !== null) {
+            return;
+        }
+        
+        // Get click coordinates relative to canvas
+        const rect = this.canvas.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+        
+        // Account for canvas scaling (CSS vs actual canvas size)
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const canvasX = clickX * scaleX;
+        const canvasY = clickY * scaleY;
+        
+        // Determine which tile was clicked
+        const tileWidth = this.imageBuffer.tile_width;
+        const tileHeight = this.imageBuffer.tile_height;
+        const col = Math.floor(canvasX / tileWidth);
+        const row = Math.floor(canvasY / tileHeight);
+        
+        // Check if click is within grid bounds
+        const numCols = parseInt(document.getElementById('num-cols').value);
+        const numRows = parseInt(document.getElementById('num-rows').value);
+        if (col >= numCols || row >= numRows || col < 0 || row < 0) {
+            return; // Click outside grid
+        }
+        
+        // Find tile at this position
+        const clickedTileIndex = this.getTileIndex(col, row);
+        
+        // Check if there's a loaded tile at this position
+        const tileAtPosition = Array.from(this.loadedTiles.entries()).find(([_, tileData]) => {
+            return tileData.col === col && tileData.row === row;
+        });
+        
+        if (tileAtPosition) {
+            const [tileIndex, _] = tileAtPosition;
+            
+            // Toggle selection
+            if (this.selectedTileIndex === tileIndex) {
+                this.selectedTileIndex = null; // Deselect
+            } else {
+                this.selectedTileIndex = tileIndex; // Select
+            }
+            
+            // Update visual state of all tiles
+            this.updateTileListSelection();
+            
+            // Update selected tile info in right sidebar
+            this.updateSelectedTileInfo();
+            
+            // Render to show/hide selection
+            this.renderSingleFrame();
+        } else {
+            // Clicked on empty tile - deselect any current selection
+            if (this.selectedTileIndex !== null) {
+                this.selectedTileIndex = null;
+                this.updateTileListSelection();
+                this.updateSelectedTileInfo();
+                this.renderSingleFrame();
+            }
+        }
     }
 
     async handleImageLoad(event) {
