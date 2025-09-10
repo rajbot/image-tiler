@@ -9,6 +9,7 @@ class RenderLoop {
         this.startBtn = document.getElementById('start-btn');
         this.stopBtn = document.getElementById('stop-btn');
         this.loadImageBtn = document.getElementById('load-image-btn');
+        this.gridToggleBtn = document.getElementById('grid-toggle-btn');
         this.fileInput = document.getElementById('file-input');
         this.tileList = document.getElementById('tile-list');
         this.selectedTileInfo = document.getElementById('selected-tile-info');
@@ -64,6 +65,9 @@ class RenderLoop {
         // Background color state
         this.backgroundColor = { r: 255, g: 255, b: 255, a: 255 }; // Default white
         
+        // Grid overlay state
+        this.gridState = 'off'; // 'off', '3x3', or '5x5'
+        
         this.setupEventListeners();
     }
 
@@ -71,6 +75,7 @@ class RenderLoop {
         this.startBtn.addEventListener('click', () => this.start());
         this.stopBtn.addEventListener('click', () => this.stop());
         this.loadImageBtn.addEventListener('click', () => this.fileInput.click());
+        this.gridToggleBtn.addEventListener('click', () => this.toggleGrid());
         this.fileInput.addEventListener('change', (e) => this.handleImageLoad(e));
         
         // Add export functionality
@@ -532,6 +537,16 @@ class RenderLoop {
                 console.error(`Failed to reload tile at (${tileData.col}, ${tileData.row}):`, error);
             }
         }
+    }
+
+    toggleGrid() {
+        const states = ['off', '3x3', '5x5'];
+        const currentIndex = states.indexOf(this.gridState);
+        this.gridState = states[(currentIndex + 1) % states.length];
+        this.gridToggleBtn.textContent = `Grid: ${this.gridState}`;
+        
+        // Redraw canvas with new grid state
+        this.renderSingleFrame();
     }
 
     async handleImageLoad(event) {
@@ -1171,11 +1186,13 @@ class RenderLoop {
     }
 
     exportCanvas(format) {
-        // Temporarily remove marching ants for clean export
+        // Temporarily remove marching ants and grid for clean export
         const originalSelection = this.selectedTileIndex;
+        const originalGridState = this.gridState;
         this.selectedTileIndex = null;
+        this.gridState = 'off';
         
-        // Redraw canvas without marching ants
+        // Redraw canvas without marching ants and grid
         this.drawFrameWithStaticBackground();
         
         // Get the canvas element
@@ -1207,8 +1224,9 @@ class RenderLoop {
             
             console.log(`Canvas exported as ${filename}`);
             
-            // Restore selection and redraw if needed
+            // Restore selection and grid state, then redraw if needed
             this.selectedTileIndex = originalSelection;
+            this.gridState = originalGridState;
             if (originalSelection !== null) {
                 if (this.running) {
                     // Let the main animation loop handle the redraw
@@ -1216,6 +1234,9 @@ class RenderLoop {
                     // Restart selection animation for static mode
                     this.startSelectionAnimation();
                 }
+            } else {
+                // Just redraw to restore grid if there was no selection
+                this.renderSingleFrame();
             }
         }, mimeType, quality);
     }
@@ -1294,6 +1315,9 @@ class RenderLoop {
         // Draw to canvas
         this.ctx.putImageData(imageData, 0, 0);
         
+        // Draw grid overlay
+        this.drawGrid();
+        
         // Draw marching ants selection if a tile is selected
         if (this.selectedTileIndex !== null) {
             this.drawMarchingAnts(frameNumber);
@@ -1315,6 +1339,9 @@ class RenderLoop {
         
         // Draw to canvas
         this.ctx.putImageData(imageData, 0, 0);
+        
+        // Draw grid overlay
+        this.drawGrid();
         
         // Note: marching ants will be drawn separately in the animation loop
     }
@@ -1351,6 +1378,58 @@ class RenderLoop {
         this.ctx.lineDashOffset = dashOffset + dashLength;
         this.ctx.strokeStyle = 'black';
         this.ctx.strokeRect(tileX - 1, tileY - 1, tileWidth + 2, tileHeight + 2);
+        
+        // Restore canvas state
+        this.ctx.restore();
+    }
+
+    drawGrid() {
+        if (this.gridState === 'off' || !this.imageBuffer) {
+            return;
+        }
+        
+        // Save canvas state
+        this.ctx.save();
+        
+        const tileWidth = this.imageBuffer.tile_width;
+        const tileHeight = this.imageBuffer.tile_height;
+        const numCols = parseInt(document.getElementById('num-cols').value);
+        const numRows = parseInt(document.getElementById('num-rows').value);
+        
+        // Set grid line style
+        this.ctx.strokeStyle = 'rgba(128, 128, 128, 0.3)';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([]);
+        
+        const gridDivisions = this.gridState === '3x3' ? 3 : 5;
+        const cellWidth = tileWidth / gridDivisions;
+        const cellHeight = tileHeight / gridDivisions;
+        
+        // Draw grid lines for each tile
+        for (let tileRow = 0; tileRow < numRows; tileRow++) {
+            for (let tileCol = 0; tileCol < numCols; tileCol++) {
+                const tileStartX = tileCol * tileWidth;
+                const tileStartY = tileRow * tileHeight;
+                
+                // Draw vertical grid lines within this tile
+                for (let i = 1; i < gridDivisions; i++) {
+                    const x = tileStartX + i * cellWidth;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, tileStartY);
+                    this.ctx.lineTo(x, tileStartY + tileHeight);
+                    this.ctx.stroke();
+                }
+                
+                // Draw horizontal grid lines within this tile
+                for (let i = 1; i < gridDivisions; i++) {
+                    const y = tileStartY + i * cellHeight;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tileStartX, y);
+                    this.ctx.lineTo(tileStartX + tileWidth, y);
+                    this.ctx.stroke();
+                }
+            }
+        }
         
         // Restore canvas state
         this.ctx.restore();

@@ -68,7 +68,7 @@
         #export-btn:hover {
             background-color: #218838;
         }
-        #load-image-btn {
+        #load-image-btn, #grid-toggle-btn {
             padding: 8px 16px;
             font-size: 14px;
             cursor: pointer;
@@ -78,7 +78,7 @@
             color: white;
             font-weight: 600;
         }
-        #load-image-btn:hover {
+        #load-image-btn:hover, #grid-toggle-btn:hover {
             background-color: #0056b3;
         }
         .render-debug-section {
@@ -556,6 +556,7 @@
             <div class="stats">
                 <div class="image-controls-stats">
                     <button id="load-image-btn">Load Image</button>
+                    <button id="grid-toggle-btn">Grid: off</button>
                     <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
                     <p id="interaction-help" class="interaction-help" style="display: none;"></p>
                 </div>
