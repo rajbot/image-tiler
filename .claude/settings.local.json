@@ -5,7 +5,9 @@
       "Bash(python3:*)",
       "Bash(curl:*)",
       "Bash(npm test)",
-      "Bash(cargo test)"
+      "Bash(cargo test)",
+      "Bash(npx playwright test:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
