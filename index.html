@@ -21,7 +21,6 @@
             font-size: 18px;
             font-weight: bold;
             color: #333;
-            margin-bottom: 20px;
             width: 100%;
         }
         .stats-info {
@@ -33,6 +32,11 @@
             flex-direction: column;
             gap: 8px;
             align-items: flex-start;
+        }
+        .button-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
         .interaction-help {
             font-size: 16px;
@@ -150,7 +154,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 10px;
             padding: 20px;
         }
         .grid-controls {
@@ -555,10 +559,11 @@
             <h1>Open-source Image Tiler</h1>
             <div class="stats">
                 <div class="image-controls-stats">
-                    <button id="load-image-btn">Load Image</button>
-                    <button id="grid-toggle-btn">Grid: off</button>
+                    <div class="button-row">
+                        <button id="load-image-btn">Load Image</button>
+                        <button id="grid-toggle-btn">Grid: off</button>
+                    </div>
                     <input type="file" id="file-input" class="file-input" accept="image/jpeg,image/png">
-                    <p id="interaction-help" class="interaction-help" style="display: none;"></p>
                 </div>
                 <div class="stats-info">
                     <div id="fps">FPS: 0</div>
@@ -572,6 +577,7 @@
                     <button id="export-btn">Export Image</button>
                 </div>
             </div>
+			<p id="interaction-help" class="interaction-help" style="display: none;"></p>            
             <canvas id="canvas" width="800" height="800"></canvas>
             <div class="render-debug-section">
                 <p class="render-debug-label">Render debugging:</p>
