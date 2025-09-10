@@ -68,6 +68,9 @@ class RenderLoop {
         // Grid overlay state
         this.gridState = 'off'; // 'off', '3x3', or '5x5'
         
+        // Grid input debounce timers
+        this.gridInputTimers = new Map();
+        
         this.setupEventListeners();
     }
 
@@ -83,15 +86,43 @@ class RenderLoop {
         const exportFormat = document.getElementById('export-format');
         exportBtn.addEventListener('click', () => this.exportCanvas(exportFormat.value));
         
-        // Add Enter key listeners to grid input fields
+        // Add Enter key listeners and debounced input listeners to grid input fields
         const gridInputs = ['tile-width', 'tile-height', 'num-cols', 'num-rows'];
+        
         gridInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
+            
+            // Enter key for immediate update
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
+                    // Clear any pending debounced update
+                    if (this.gridInputTimers.has(inputId)) {
+                        clearTimeout(this.gridInputTimers.get(inputId));
+                        this.gridInputTimers.delete(inputId);
+                    }
                     this.regenerateGrid();
                 }
             });
+            
+            // Input and change events with debouncing for arrow clicks and typing
+            const handleInputChange = () => {
+                // Clear existing timer for this input
+                if (this.gridInputTimers.has(inputId)) {
+                    clearTimeout(this.gridInputTimers.get(inputId));
+                }
+                
+                // Set new timer
+                const timer = setTimeout(() => {
+                    this.gridInputTimers.delete(inputId);
+                    this.regenerateGrid();
+                }, 500); // 500ms debounce delay
+                
+                this.gridInputTimers.set(inputId, timer);
+            };
+            
+            // Listen to both input and change events to catch all value changes
+            input.addEventListener('input', handleInputChange);
+            input.addEventListener('change', handleInputChange);
         });
         
         // Add scale input event listeners
