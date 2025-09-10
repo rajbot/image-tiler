@@ -905,4 +905,53 @@ test.describe('Fast Image Tiler Application', () => {
     
     expect(hasPinchMethods).toBe(true);
   });
+
+  // Background color functionality tests
+  test('should display background color controls', async ({ page }) => {
+    // Check that background color controls are visible
+    await expect(page.locator('.background-color-section h3')).toHaveText('Background Color');
+    await expect(page.locator('#background-color')).toBeVisible();
+    await expect(page.locator('#background-opacity')).toBeVisible();
+    
+    // Check default values
+    const defaultColor = await page.locator('#background-color').inputValue();
+    expect(defaultColor).toBe('#ffffff');
+    
+    const defaultOpacity = await page.locator('#background-opacity').inputValue();
+    expect(defaultOpacity).toBe('100');
+    
+    // Check that hex display shows the default color
+    await expect(page.locator('#background-color-hex')).toHaveText('#ffffff');
+    await expect(page.locator('#background-opacity-value')).toHaveText('100%');
+  });
+
+  test('should update background color when color picker changes', async ({ page }) => {
+    // Change the background color to red
+    await page.locator('#background-color').fill('#ff0000');
+    
+    // Check that hex display was updated
+    await expect(page.locator('#background-color-hex')).toHaveText('#FF0000');
+    
+    // Verify background color state was updated in JavaScript
+    const backgroundColorState = await page.evaluate(() => {
+      return window.renderLoop?.backgroundColor || null;
+    });
+    expect(backgroundColorState.r).toBe(255);
+    expect(backgroundColorState.g).toBe(0);
+    expect(backgroundColorState.b).toBe(0);
+  });
+
+  test('should update background opacity when slider changes', async ({ page }) => {
+    // Change the background opacity to 50%
+    await page.locator('#background-opacity').fill('50');
+    
+    // Check that opacity display was updated
+    await expect(page.locator('#background-opacity-value')).toHaveText('50%');
+    
+    // Verify opacity state was updated in JavaScript
+    const backgroundOpacity = await page.evaluate(() => {
+      return window.renderLoop?.backgroundColor?.a || null;
+    });
+    expect(backgroundOpacity).toBe(128); // 50% of 255
+  });
 });

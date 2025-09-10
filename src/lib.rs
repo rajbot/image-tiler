@@ -18,6 +18,10 @@ pub struct ImageBuffer {
     num_rows: u32,
     data: Vec<u8>,
     loaded_tiles: Vec<TileInfo>,
+    background_r: u8,
+    background_g: u8,
+    background_b: u8,
+    background_a: u8,
 }
 
 #[wasm_bindgen]
@@ -36,6 +40,10 @@ impl ImageBuffer {
             num_rows, 
             data,
             loaded_tiles: Vec::new(),
+            background_r: 255,  // Default to white background
+            background_g: 255,
+            background_b: 255,
+            background_a: 255,
         }
     }
 
@@ -67,6 +75,14 @@ impl ImageBuffer {
     #[wasm_bindgen]
     pub fn data_len(&self) -> usize {
         self.data.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn set_background_color(&mut self, r: u8, g: u8, b: u8, a: u8) {
+        self.background_r = r;
+        self.background_g = g;
+        self.background_b = b;
+        self.background_a = a;
     }
 
     // Helper method to check if a pixel is within any loaded tile
@@ -183,11 +199,11 @@ impl ImageBuffer {
                         self.data[dst_index + 2] = pixel[2]; // B
                         self.data[dst_index + 3] = pixel[3]; // A
                     } else {
-                        // Transparent pixel for areas outside the image
-                        self.data[dst_index] = 0;
-                        self.data[dst_index + 1] = 0;
-                        self.data[dst_index + 2] = 0;
-                        self.data[dst_index + 3] = 0;
+                        // Background color for areas outside the image
+                        self.data[dst_index] = self.background_r;
+                        self.data[dst_index + 1] = self.background_g;
+                        self.data[dst_index + 2] = self.background_b;
+                        self.data[dst_index + 3] = self.background_a;
                     }
                 }
             }
@@ -287,11 +303,11 @@ impl ImageBuffer {
                         self.data[dst_index + 2] = pixel[2]; // B
                         self.data[dst_index + 3] = pixel[3]; // A
                     } else {
-                        // Transparent pixel for areas outside the image
-                        self.data[dst_index] = 0;
-                        self.data[dst_index + 1] = 0;
-                        self.data[dst_index + 2] = 0;
-                        self.data[dst_index + 3] = 0;
+                        // Background color for areas outside the image
+                        self.data[dst_index] = self.background_r;
+                        self.data[dst_index + 1] = self.background_g;
+                        self.data[dst_index + 2] = self.background_b;
+                        self.data[dst_index + 3] = self.background_a;
                     }
                 }
             }
@@ -319,11 +335,11 @@ impl ImageBuffer {
                 let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
                 
                 if dst_index + 3 < self.data.len() {
-                    // Set to transparent
-                    self.data[dst_index] = 0;     // R
-                    self.data[dst_index + 1] = 0; // G
-                    self.data[dst_index + 2] = 0; // B
-                    self.data[dst_index + 3] = 0; // A
+                    // Set to background color
+                    self.data[dst_index] = self.background_r;     // R
+                    self.data[dst_index + 1] = self.background_g; // G
+                    self.data[dst_index + 2] = self.background_b; // B
+                    self.data[dst_index + 3] = self.background_a; // A
                 }
             }
         }

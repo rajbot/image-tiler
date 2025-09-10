@@ -202,6 +202,97 @@
             font-weight: 600;
             color: #333;
         }
+        .background-color-section {
+            margin-top: 20px;
+        }
+        .background-color-section h3 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 8px;
+        }
+        .color-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .color-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .color-input-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            min-width: 45px;
+        }
+        .color-input-group input[type="color"] {
+            width: 50px;
+            height: 30px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        .color-input-group input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        .color-input-group input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        #background-color-hex {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+        }
+        .opacity-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .opacity-input-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            min-width: 45px;
+        }
+        .opacity-input-group input[type="range"] {
+            flex: 1;
+            height: 20px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 10px;
+            outline: none;
+        }
+        .opacity-input-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .opacity-input-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        #background-opacity-value {
+            font-size: 12px;
+            color: #666;
+            min-width: 35px;
+        }
         .tile-list-section {
             margin-top: 20px;
         }
@@ -412,6 +503,22 @@
                     <div class="input-compact tile-size">
                         <label for="num-rows">Rows:</label>
                         <input type="number" id="num-rows" value="2" min="1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="background-color-section">
+                <h3>Background Color</h3>
+                <div class="color-controls">
+                    <div class="color-input-group">
+                        <label for="background-color">Color:</label>
+                        <input type="color" id="background-color" value="#ffffff">
+                        <span id="background-color-hex">#ffffff</span>
+                    </div>
+                    <div class="opacity-input-group">
+                        <label for="background-opacity">Opacity:</label>
+                        <input type="range" id="background-opacity" min="0" max="100" value="100">
+                        <span id="background-opacity-value">100%</span>
                     </div>
                 </div>
             </div>

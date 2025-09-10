@@ -18,6 +18,12 @@ class RenderLoop {
         this.tileOffsetXInput = document.getElementById('tile-offset-x');
         this.tileOffsetYInput = document.getElementById('tile-offset-y');
         
+        // Background color controls
+        this.backgroundColorInput = document.getElementById('background-color');
+        this.backgroundColorHex = document.getElementById('background-color-hex');
+        this.backgroundOpacityInput = document.getElementById('background-opacity');
+        this.backgroundOpacityValue = document.getElementById('background-opacity-value');
+        
         this.running = false;
         this.frameCount = 0;
         this.lastTime = 0;
@@ -51,6 +57,9 @@ class RenderLoop {
         this.initialPinchDistance = 0;
         this.initialScale = 1.0;
         this.lastPinchUpdateTime = 0;
+        
+        // Background color state
+        this.backgroundColor = { r: 255, g: 255, b: 255, a: 255 }; // Default white
         
         this.setupEventListeners();
     }
@@ -98,6 +107,10 @@ class RenderLoop {
                 this.updateTileOffset();
             }
         });
+        
+        // Add background color event listeners
+        this.backgroundColorInput.addEventListener('input', () => this.updateBackgroundColor());
+        this.backgroundOpacityInput.addEventListener('input', () => this.updateBackgroundOpacity());
         
         // Add canvas event handlers for tile selection and offset dragging
         this.canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
@@ -435,6 +448,89 @@ class RenderLoop {
         }
     }
 
+    // Convert hex color to RGB values
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    // Update background color from color picker
+    updateBackgroundColor() {
+        const hexColor = this.backgroundColorInput.value;
+        const rgb = this.hexToRgb(hexColor);
+        
+        if (rgb) {
+            this.backgroundColor.r = rgb.r;
+            this.backgroundColor.g = rgb.g;
+            this.backgroundColor.b = rgb.b;
+            
+            // Update hex display
+            this.backgroundColorHex.textContent = hexColor.toUpperCase();
+            
+            // Apply background color to WASM
+            this.applyBackgroundColorToWasm();
+            
+            console.log(`Background color updated to ${hexColor} (${rgb.r}, ${rgb.g}, ${rgb.b}, ${this.backgroundColor.a})`);
+        }
+    }
+
+    // Update background opacity from slider
+    updateBackgroundOpacity() {
+        const opacityPercent = parseInt(this.backgroundOpacityInput.value);
+        this.backgroundColor.a = Math.round((opacityPercent / 100) * 255);
+        
+        // Update opacity display
+        this.backgroundOpacityValue.textContent = `${opacityPercent}%`;
+        
+        // Apply background color to WASM
+        this.applyBackgroundColorToWasm();
+        
+        console.log(`Background opacity updated to ${opacityPercent}% (alpha: ${this.backgroundColor.a})`);
+    }
+
+    // Apply current background color to WASM and refresh affected areas
+    async applyBackgroundColorToWasm() {
+        if (!this.imageBuffer) return;
+        
+        // Set the background color in WASM
+        this.imageBuffer.set_background_color(
+            this.backgroundColor.r,
+            this.backgroundColor.g,
+            this.backgroundColor.b,
+            this.backgroundColor.a
+        );
+        
+        // Reload all tiles to apply the new background color
+        await this.reloadAllTiles();
+        
+        // Render to show the changes
+        if (!this.running) {
+            this.renderSingleFrame();
+        }
+    }
+
+    // Reload all loaded tiles to apply new background color
+    async reloadAllTiles() {
+        for (const [tileIndex, tileData] of this.loadedTiles) {
+            try {
+                await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
+                    tileData.imageData,
+                    tileData.col,
+                    tileData.row,
+                    tileData.scale || 1.0,
+                    tileData.offsetX || 0,
+                    tileData.offsetY || 0
+                );
+            } catch (error) {
+                console.error(`Failed to reload tile at (${tileData.col}, ${tileData.row}):`, error);
+            }
+        }
+    }
+
     async handleImageLoad(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -490,6 +586,14 @@ class RenderLoop {
             this.wasmModule = await init();
             this.imageBuffer = new ImageBuffer(400, 400, 2, 2);
             
+            // Initialize background color in WASM
+            this.imageBuffer.set_background_color(
+                this.backgroundColor.r,
+                this.backgroundColor.g,
+                this.backgroundColor.b,
+                this.backgroundColor.a
+            );
+            
             // Initialize tile list display
             this.updateTileList();
             
@@ -525,6 +629,14 @@ class RenderLoop {
             
             // Create new ImageBuffer with new dimensions
             this.imageBuffer = new ImageBuffer(tileWidth, tileHeight, numCols, numRows);
+            
+            // Initialize background color in new WASM buffer
+            this.imageBuffer.set_background_color(
+                this.backgroundColor.r,
+                this.backgroundColor.g,
+                this.backgroundColor.b,
+                this.backgroundColor.a
+            );
             
             // Update canvas size to match new total dimensions
             const totalWidth = tileWidth * numCols;
