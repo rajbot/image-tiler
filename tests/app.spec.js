@@ -421,15 +421,15 @@ test.describe('Fast Image Tiler Application', () => {
     // Check offset X input attributes
     const offsetXInput = page.locator('#tile-offset-x');
     await expect(offsetXInput).toHaveAttribute('type', 'number');
-    await expect(offsetXInput).toHaveAttribute('min', '-200');
-    await expect(offsetXInput).toHaveAttribute('max', '200');
+    await expect(offsetXInput).toHaveAttribute('min', '-400');
+    await expect(offsetXInput).toHaveAttribute('max', '400');
     await expect(offsetXInput).toHaveAttribute('step', '1');
     
     // Check offset Y input attributes
     const offsetYInput = page.locator('#tile-offset-y');
     await expect(offsetYInput).toHaveAttribute('type', 'number');
-    await expect(offsetYInput).toHaveAttribute('min', '-200');
-    await expect(offsetYInput).toHaveAttribute('max', '200');
+    await expect(offsetYInput).toHaveAttribute('min', '-400');
+    await expect(offsetYInput).toHaveAttribute('max', '400');
     await expect(offsetYInput).toHaveAttribute('step', '1');
     
     // Check that the px units are displayed
@@ -647,7 +647,7 @@ test.describe('Fast Image Tiler Application', () => {
     });
     
     // Try to set offset X beyond maximum (should be clamped/validated)
-    await page.fill('#tile-offset-x', '250');
+    await page.fill('#tile-offset-x', '500');
     await page.press('#tile-offset-x', 'Enter');
     
     await page.waitForTimeout(200);
@@ -655,7 +655,7 @@ test.describe('Fast Image Tiler Application', () => {
     // Check if validation occurred
     const alertMessages = await page.evaluate(() => window.alertMessages);
     expect(alertMessages.length).toBeGreaterThan(0);
-    expect(alertMessages[0]).toContain('Offset must be between -200px and 200px');
+    expect(alertMessages[0]).toContain('Offset must be between -400px and 400px');
     
     // Verify the input was reset to valid value
     await expect(page.locator('#tile-offset-x')).toHaveValue('0');

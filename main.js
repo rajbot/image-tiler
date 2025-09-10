@@ -317,6 +317,11 @@ class RenderLoop {
             
             // Status updates removed to free up right sidebar
             
+            // Update offset input ranges if a tile is selected (tile dimensions may have changed)
+            if (this.selectedTileIndex !== null && this.loadedTiles.has(this.selectedTileIndex)) {
+                this.updateSelectedTileInfo();
+            }
+            
             // Restart animation if it was running, otherwise render single frame
             if (wasRunning) {
                 this.start();
@@ -542,6 +547,14 @@ class RenderLoop {
             this.tileScaleInput.value = Math.round(tileData.scale * 100);
             this.tileOffsetXInput.value = tileData.offsetX || 0;
             this.tileOffsetYInput.value = tileData.offsetY || 0;
+            
+            // Update offset input ranges based on current tile dimensions
+            const tileWidth = this.imageBuffer.tile_width;
+            const tileHeight = this.imageBuffer.tile_height;
+            this.tileOffsetXInput.setAttribute('min', `-${tileWidth}`);
+            this.tileOffsetXInput.setAttribute('max', `${tileWidth}`);
+            this.tileOffsetYInput.setAttribute('min', `-${tileHeight}`);
+            this.tileOffsetYInput.setAttribute('max', `${tileHeight}`);
         }
     }
 
@@ -602,10 +615,14 @@ class RenderLoop {
         const newOffsetX = parseInt(this.tileOffsetXInput.value);
         const newOffsetY = parseInt(this.tileOffsetYInput.value);
         
+        // Get current tile dimensions for validation
+        const tileWidth = this.imageBuffer.tile_width;
+        const tileHeight = this.imageBuffer.tile_height;
+        
         if (isNaN(newOffsetX) || isNaN(newOffsetY) || 
-            newOffsetX < -200 || newOffsetX > 200 || 
-            newOffsetY < -200 || newOffsetY > 200) {
-            alert('Offset must be between -200px and 200px');
+            newOffsetX < -tileWidth || newOffsetX > tileWidth || 
+            newOffsetY < -tileHeight || newOffsetY > tileHeight) {
+            alert(`Offset must be between -${tileWidth}px and ${tileWidth}px for X, and -${tileHeight}px and ${tileHeight}px for Y`);
             // Reset to current offsets
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.tileOffsetXInput.value = tileData.offsetX || 0;
