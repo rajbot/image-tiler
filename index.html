@@ -72,9 +72,19 @@
         #load-image-btn:hover {
             background-color: #0056b3;
         }
+        .render-debug-section {
+            text-align: center;
+        }
+        .render-debug-label {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
         .controls {
             display: flex;
             gap: 10px;
+            justify-content: center;
         }
         button {
             padding: 10px 20px;
@@ -552,9 +562,12 @@
                 </div>
             </div>
             <canvas id="canvas" width="800" height="800"></canvas>
-            <div class="controls">
-                <button id="start-btn">Start</button>
-                <button id="stop-btn" disabled>Stop</button>
+            <div class="render-debug-section">
+                <p class="render-debug-label">Render debugging:</p>
+                <div class="controls">
+                    <button id="start-btn">Start</button>
+                    <button id="stop-btn" disabled>Stop</button>
+                </div>
             </div>
         </div>
         

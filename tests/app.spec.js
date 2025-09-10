@@ -36,12 +36,20 @@ test.describe('Fast Image Tiler Application', () => {
   });
 
   test('should start and stop animation', async ({ page }) => {
+    // Initially FPS and frame counter should be hidden
+    await expect(page.locator('#fps')).toBeHidden();
+    await expect(page.locator('#frame-count')).toBeHidden();
+    
     // Start animation
     await page.click('#start-btn');
     
     // Verify animation is running
     await expect(page.locator('#start-btn')).toBeDisabled();
     await expect(page.locator('#stop-btn')).toBeEnabled();
+    
+    // FPS and frame counter should now be visible
+    await expect(page.locator('#fps')).toBeVisible();
+    await expect(page.locator('#frame-count')).toBeVisible();
     
     // Wait for FPS to update (indicating animation is working)
     await page.waitForFunction(() => {
@@ -61,6 +69,10 @@ test.describe('Fast Image Tiler Application', () => {
     // Verify animation is stopped
     await expect(page.locator('#start-btn')).toBeEnabled();
     await expect(page.locator('#stop-btn')).toBeDisabled();
+    
+    // FPS and frame counter should be hidden again
+    await expect(page.locator('#fps')).toBeHidden();
+    await expect(page.locator('#frame-count')).toBeHidden();
   });
 
   test('should change grid dimensions and resize canvas', async ({ page }) => {

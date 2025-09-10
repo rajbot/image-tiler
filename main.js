@@ -597,6 +597,10 @@ class RenderLoop {
             // Initialize tile list display
             this.updateTileList();
             
+            // Hide FPS and frame counter initially (shown only when animation starts)
+            this.fpsElement.style.display = 'none';
+            this.frameCountElement.style.display = 'none';
+            
             // Render initial frame to show default pattern
             this.renderSingleFrame();
             
@@ -1203,6 +1207,10 @@ class RenderLoop {
         this.lastTime = performance.now();
         this.frameTimeBuffer = [];
         
+        // Show FPS and frame counter when animation starts
+        this.fpsElement.style.display = 'block';
+        this.frameCountElement.style.display = 'block';
+        
         this.render();
     }
 
@@ -1210,6 +1218,10 @@ class RenderLoop {
         this.running = false;
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
+        
+        // Hide FPS and frame counter when animation stops
+        this.fpsElement.style.display = 'none';
+        this.frameCountElement.style.display = 'none';
         
         // Restart selection animation if a tile is selected and not dragging
         if (this.selectedTileIndex !== null && !this.isDraggingOffset) {
