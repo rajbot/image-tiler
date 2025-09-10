@@ -131,6 +131,29 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
+    pub fn fill_background(&mut self) {
+        let width = self.width as usize;
+        let height = self.height as usize;
+        
+        for y in 0..height {
+            for x in 0..width {
+                // Skip pixels that are part of any loaded image
+                if self.is_pixel_in_loaded_tile(x, y) {
+                    continue;
+                }
+                
+                let index = (y * width + x) * 4;
+                
+                // Fill with solid background color
+                self.data[index] = self.background_r;
+                self.data[index + 1] = self.background_g;
+                self.data[index + 2] = self.background_b;
+                self.data[index + 3] = self.background_a;
+            }
+        }
+    }
+
+    #[wasm_bindgen]
     pub fn load_image_from_bytes(&mut self, image_data: &[u8], col: u32, row: u32) -> Result<(), JsValue> {
         self.load_image_from_bytes_with_scale(image_data, col, row, 1.0)
     }

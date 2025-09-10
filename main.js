@@ -1262,8 +1262,8 @@ class RenderLoop {
     }
 
     drawFrameWithStaticBackground() {
-        // Generate static pattern with frame 0 in Rust
-        this.imageBuffer.generate_pattern(0);
+        // Fill with solid background color instead of animated pattern
+        this.imageBuffer.fill_background();
         
         // Get WASM memory buffer
         const wasmMemory = this.wasmModule.memory;
@@ -1319,7 +1319,13 @@ class RenderLoop {
 
     renderSingleFrame() {
         // Render a single frame without starting animation loop
-        this.drawFrame(0); // Use frame 0 for static display
+        // Use solid background instead of animated pattern when stopped
+        this.drawFrameWithStaticBackground();
+        
+        // Draw marching ants for selected tile if any
+        if (this.selectedTileIndex !== null) {
+            this.drawMarchingAnts(0); // Use frame 0 for static marching ants
+        }
         
         // Start marching ants animation if a tile is selected and main animation isn't running
         if (this.selectedTileIndex !== null && !this.running) {
