@@ -789,8 +789,16 @@ class RenderLoop {
         this.tileList.innerHTML = '';
         
         if (this.loadedTiles.size > 0) {
-            // Sort tiles by index for consistent display order
-            const sortedTiles = Array.from(this.loadedTiles.entries()).sort((a, b) => a[0] - b[0]);
+            // Sort tiles by grid position (row first, then column) for display order that matches layout
+            const sortedTiles = Array.from(this.loadedTiles.entries()).sort((a, b) => {
+                const tileA = a[1];
+                const tileB = b[1];
+                // Sort by row first, then by column
+                if (tileA.row !== tileB.row) {
+                    return tileA.row - tileB.row;
+                }
+                return tileA.col - tileB.col;
+            });
             
             for (const [tileIndex, tileData] of sortedTiles) {
                 const listItem = document.createElement('li');
