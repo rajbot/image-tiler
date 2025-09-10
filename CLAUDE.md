@@ -28,9 +28,17 @@ python3 -m http.server 8000
 ### Development Workflow
 
 1. Make changes to `src/lib.rs` for Rust/WASM functionality  
-2. Run `wasm-pack build --target web --out-dir pkg` to regenerate bindings
-3. Modify `index.html` for JavaScript/UI changes (no rebuild needed)
-4. Refresh browser to test changes
+2. **Run `cargo fmt` before committing any Rust code** - Required for CI formatting checks
+3. Run `wasm-pack build --target web --out-dir pkg` to regenerate bindings
+4. Modify `index.html` for JavaScript/UI changes (no rebuild needed)
+5. Refresh browser to test changes
+
+### Code Quality Requirements
+
+**Rust Code Formatting**:
+- Always run `cargo fmt` before committing Rust code changes
+- The CI pipeline enforces strict formatting with `cargo fmt -- --check`
+- Use `cargo clippy -- -D warnings` to ensure no linting warnings
 
 ## Testing
 
