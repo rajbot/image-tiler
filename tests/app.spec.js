@@ -1010,8 +1010,9 @@ test.describe('Fast Image Tiler Application', () => {
 
   // Contextual help text tests
   test('should show contextual help text based on tile state', async ({ page }) => {
-    // Initially no help text should be visible (no tiles loaded)
-    await expect(page.locator('#interaction-help')).toBeHidden();
+    // Initially should show introductory text (no tiles loaded)
+    await expect(page.locator('#interaction-help')).toBeVisible();
+    await expect(page.locator('#interaction-help')).toHaveText('Place images in a grid or side-by-side. Local-only, you can run this app offline.');
     
     // Load a tile by simulating JavaScript tile loading
     await page.evaluate(() => {
@@ -1045,7 +1046,8 @@ test.describe('Fast Image Tiler Application', () => {
     // Remove the tile
     await page.click('.tile-remove');
     
-    // Help text should be hidden again (no tiles loaded)
-    await expect(page.locator('#interaction-help')).toBeHidden();
+    // Help text should show introductory message again (no tiles loaded)
+    await expect(page.locator('#interaction-help')).toBeVisible();
+    await expect(page.locator('#interaction-help')).toHaveText('Place images in a grid or side-by-side. Local-only, you can run this app offline.');
   });
 });

@@ -974,8 +974,9 @@ class RenderLoop {
         const hasSelection = this.selectedTileIndex !== null && this.loadedTiles.has(this.selectedTileIndex);
         
         if (!hasTiles) {
-            // No tiles loaded - hide help text
-            this.interactionHelp.style.display = 'none';
+            // No tiles loaded - show introductory text
+            this.interactionHelp.textContent = 'Place images in a grid or side-by-side. Local-only, you can run this app offline.';
+            this.interactionHelp.style.display = 'block';
         } else if (!hasSelection) {
             // Tiles loaded but nothing selected
             this.interactionHelp.textContent = 'Click to select tile';
