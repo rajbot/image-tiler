@@ -192,7 +192,32 @@ class RenderLoop {
                 return i;
             }
         }
-        return null; // No available slots
+        
+        // If no slots available, expand the grid automatically
+        return this.expandGridAndGetNextIndex(numCols, numRows);
+    }
+
+    expandGridAndGetNextIndex(currentCols, currentRows) {
+        // Determine whether to add a row or column based on current dimensions
+        // If equal number of rows/cols, or more columns than rows, add a new row
+        // Otherwise add a new column
+        let newCols = currentCols;
+        let newRows = currentRows;
+        
+        if (currentCols >= currentRows) {
+            // Add a new row
+            newRows = currentRows + 1;
+        } else {
+            // Add a new column  
+            newCols = currentCols + 1;
+        }
+
+        // Update the UI inputs
+        document.getElementById('num-cols').value = newCols;
+        document.getElementById('num-rows').value = newRows;
+
+        // The first available index in the expanded grid will be the first tile of the new row/column
+        return currentCols * currentRows; // This is the first new tile index
     }
     
     // Handle canvas mouse down for tile selection and drag start
@@ -627,11 +652,20 @@ class RenderLoop {
             return;
         }
         
-        // Find next available tile position
+        // Find next available tile position (may expand grid automatically)
+        const originalCols = parseInt(document.getElementById('num-cols').value);
+        const originalRows = parseInt(document.getElementById('num-rows').value);
+        
         const tileIndex = this.getNextAvailableTileIndex();
-        if (tileIndex === null) {
-            alert('All tile positions are full. Remove a tile first.');
-            return;
+        
+        // Check if grid was expanded
+        const newCols = parseInt(document.getElementById('num-cols').value);
+        const newRows = parseInt(document.getElementById('num-rows').value);
+        const gridExpanded = (newCols !== originalCols || newRows !== originalRows);
+        
+        if (gridExpanded) {
+            // Grid was expanded, need to regenerate it first
+            await this.regenerateGrid();
         }
         
         try {

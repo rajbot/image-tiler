@@ -1050,4 +1050,56 @@ test.describe('Fast Image Tiler Application', () => {
     await expect(page.locator('#interaction-help')).toBeVisible();
     await expect(page.locator('#interaction-help')).toHaveText('Place images in a grid or side-by-side. Local-only, you can run this app offline.');
   });
+
+  test('should automatically expand grid when all tiles are full', async ({ page }) => {
+    // Capture console logs to see what's happening
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    // Start with a 1x1 grid for simpler testing
+    await page.fill('#num-cols', '1');
+    await page.fill('#num-rows', '1'); 
+    await page.press('#num-rows', 'Enter');
+    await page.waitForTimeout(300);
+    
+    // Verify grid is 1x1
+    await expect(page.locator('#num-cols')).toHaveValue('1');
+    await expect(page.locator('#num-rows')).toHaveValue('1');
+    
+    // Use the data URL and convert to buffer properly
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    const base64Data = dataUrl.split(',')[1];
+    const pngBuffer = Buffer.from(base64Data, 'base64');
+    
+    console.log('TEST: Uploading first image...');
+    
+    // Upload first image to fill the only tile
+    await page.setInputFiles('#file-input', {
+      name: 'test1.png',
+      mimeType: 'image/png', 
+      buffer: pngBuffer
+    });
+    await page.waitForTimeout(1000);
+    
+    console.log('TEST: Uploading second image...');
+    
+    // Upload second image - should trigger grid expansion
+    await page.setInputFiles('#file-input', {
+      name: 'test2.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer  
+    });
+    await page.waitForTimeout(1500); // Give more time for async regeneration
+    
+    // Check if grid expanded (should be 1x2 since cols >= rows, we add a row)
+    const colsValue = await page.locator('#num-cols').inputValue();
+    const rowsValue = await page.locator('#num-rows').inputValue();
+    
+    console.log(`After expansion - Cols: ${colsValue}, Rows: ${rowsValue}`);
+    
+    // Should expand to 1 col, 2 rows
+    await expect(page.locator('#num-cols')).toHaveValue('1');
+    await expect(page.locator('#num-rows')).toHaveValue('2');
+  });
 });
