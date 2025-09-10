@@ -1397,7 +1397,7 @@ class RenderLoop {
         const numRows = parseInt(document.getElementById('num-rows').value);
         
         // Set grid line style
-        this.ctx.strokeStyle = 'rgba(128, 128, 128, 0.3)';
+        this.ctx.strokeStyle = 'white';
         this.ctx.lineWidth = 1;
         this.ctx.setLineDash([]);
         
@@ -1410,6 +1410,19 @@ class RenderLoop {
             for (let tileCol = 0; tileCol < numCols; tileCol++) {
                 const tileStartX = tileCol * tileWidth;
                 const tileStartY = tileRow * tileHeight;
+                
+                // Draw tile boundary lines (top and left edges)
+                // Top edge of tile
+                this.ctx.beginPath();
+                this.ctx.moveTo(tileStartX, tileStartY);
+                this.ctx.lineTo(tileStartX + tileWidth, tileStartY);
+                this.ctx.stroke();
+                
+                // Left edge of tile
+                this.ctx.beginPath();
+                this.ctx.moveTo(tileStartX, tileStartY);
+                this.ctx.lineTo(tileStartX, tileStartY + tileHeight);
+                this.ctx.stroke();
                 
                 // Draw vertical grid lines within this tile
                 for (let i = 1; i < gridDivisions; i++) {
