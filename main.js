@@ -592,10 +592,15 @@ class RenderLoop {
             // Render immediately to show the loaded image
             this.renderSingleFrame();
             
+            // Clear file input to allow re-selecting the same file
+            this.fileInput.value = '';
+            
             console.log(`Image loaded successfully at tile position (${col}, ${row})`);
         } catch (error) {
             console.error('Failed to load image:', error);
             alert('Failed to load image: ' + error.message);
+            // Clear file input even on error to allow re-selection
+            this.fileInput.value = '';
         }
     }
 
