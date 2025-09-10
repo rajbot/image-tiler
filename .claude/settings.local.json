@@ -7,7 +7,10 @@
       "Bash(npm test)",
       "Bash(cargo test)",
       "Bash(npx playwright test:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)"
     ],
     "deny": [],
     "ask": []
