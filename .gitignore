@@ -25,3 +25,6 @@ Thumbs.db
 
 # Temporary files
 temp-test-image.png
+
+# Claude Code configuration
+.claude/
