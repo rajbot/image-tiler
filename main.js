@@ -45,6 +45,13 @@ class RenderLoop {
         this.lastDragUpdateTime = 0;
         this.dragThrottleMs = 16; // ~60fps throttling for WASM updates
         
+        // Pinch-to-zoom gesture state
+        this.isPinching = false;
+        this.touchStartTouches = [];
+        this.initialPinchDistance = 0;
+        this.initialScale = 1.0;
+        this.lastPinchUpdateTime = 0;
+        
         this.setupEventListeners();
     }
 
@@ -97,6 +104,14 @@ class RenderLoop {
         this.canvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleCanvasMouseUp(e));
         this.canvas.addEventListener('mouseleave', (e) => this.handleCanvasMouseLeave(e));
+        
+        // Add touch event handlers for pinch-to-zoom
+        this.canvas.addEventListener('touchstart', (e) => this.handleCanvasTouchStart(e));
+        this.canvas.addEventListener('touchmove', (e) => this.handleCanvasTouchMove(e));
+        this.canvas.addEventListener('touchend', (e) => this.handleCanvasTouchEnd(e));
+        
+        // Add wheel event handler for trackpad pinch-to-zoom
+        this.canvas.addEventListener('wheel', (e) => this.handleCanvasWheel(e));
     }
 
     // Helper method to calculate grid position from tile index
@@ -270,6 +285,153 @@ class RenderLoop {
     handleCanvasMouseLeave(event) {
         if (this.isDraggingOffset) {
             this.finalizeDrag();
+        }
+    }
+
+    // Touch event handlers for pinch-to-zoom
+    handleCanvasTouchStart(event) {
+        // Only handle if a tile is selected
+        if (this.selectedTileIndex === null) {
+            return;
+        }
+        
+        // Prevent default touch behavior (scrolling, zooming)
+        event.preventDefault();
+        
+        const touches = Array.from(event.touches);
+        
+        if (touches.length === 2) {
+            // Two fingers - start pinch gesture
+            this.isPinching = true;
+            this.touchStartTouches = touches.map(touch => ({
+                x: touch.clientX,
+                y: touch.clientY
+            }));
+            
+            // Calculate initial distance between fingers
+            this.initialPinchDistance = this.calculateTouchDistance(touches[0], touches[1]);
+            
+            // Store current scale
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            this.initialScale = tileData ? tileData.scale : 1.0;
+            
+            console.log(`Pinch started: distance=${this.initialPinchDistance}, scale=${this.initialScale}`);
+        }
+    }
+
+    handleCanvasTouchMove(event) {
+        if (!this.isPinching || this.selectedTileIndex === null) {
+            return;
+        }
+        
+        // Prevent default touch behavior
+        event.preventDefault();
+        
+        const touches = Array.from(event.touches);
+        
+        if (touches.length === 2) {
+            // Calculate current distance between fingers
+            const currentDistance = this.calculateTouchDistance(touches[0], touches[1]);
+            
+            // Calculate scale factor
+            const scaleFactor = currentDistance / this.initialPinchDistance;
+            const newScale = Math.max(0.1, Math.min(5.0, this.initialScale * scaleFactor));
+            
+            // Throttle updates for performance
+            const now = Date.now();
+            if (now - this.lastPinchUpdateTime >= this.dragThrottleMs) {
+                this.applyPinchScale(newScale);
+                this.lastPinchUpdateTime = now;
+            }
+        }
+    }
+
+    handleCanvasTouchEnd(event) {
+        // Prevent default touch behavior
+        event.preventDefault();
+        
+        const touches = Array.from(event.touches);
+        
+        if (touches.length < 2) {
+            // End pinch gesture when less than 2 fingers remain
+            if (this.isPinching) {
+                console.log(`Pinch ended`);
+                this.isPinching = false;
+                this.touchStartTouches = [];
+                
+                // Apply final scale update
+                const tileData = this.loadedTiles.get(this.selectedTileIndex);
+                if (tileData) {
+                    this.updateTileScaleValue(Math.round(tileData.scale * 100));
+                }
+            }
+        }
+    }
+
+    // Wheel event handler for trackpad pinch-to-zoom
+    handleCanvasWheel(event) {
+        // Only handle if a tile is selected and it's a pinch gesture (Ctrl+wheel)
+        if (this.selectedTileIndex === null || !event.ctrlKey) {
+            return;
+        }
+        
+        // Prevent default browser zoom
+        event.preventDefault();
+        
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        if (!tileData) return;
+        
+        // Calculate scale change from wheel delta
+        const scaleFactor = 1 - (event.deltaY * 0.01); // Adjust sensitivity
+        const newScale = Math.max(0.1, Math.min(5.0, tileData.scale * scaleFactor));
+        
+        // Apply scale change
+        this.applyPinchScale(newScale);
+        this.updateTileScaleValue(Math.round(newScale * 100));
+    }
+
+    // Helper method to calculate distance between two touch points
+    calculateTouchDistance(touch1, touch2) {
+        const dx = touch2.clientX - touch1.clientX;
+        const dy = touch2.clientY - touch1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // Helper method to apply scale from pinch gesture
+    async applyPinchScale(newScale) {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            return;
+        }
+        
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        
+        try {
+            // Update scale in tile data
+            tileData.scale = newScale;
+            
+            // Reload image with new scale and existing offsets
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
+                tileData.imageData, 
+                tileData.col, 
+                tileData.row, 
+                newScale,
+                tileData.offsetX || 0,
+                tileData.offsetY || 0
+            );
+            
+            // Render to show updated scale
+            if (!this.running) {
+                this.renderSingleFrame();
+            }
+        } catch (error) {
+            console.error('Failed to apply pinch scale:', error);
+        }
+    }
+
+    // Helper method to update scale input value
+    updateTileScaleValue(scalePercent) {
+        if (this.tileScaleInput) {
+            this.tileScaleInput.value = scalePercent;
         }
     }
 
