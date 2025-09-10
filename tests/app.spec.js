@@ -934,11 +934,11 @@ test.describe('Fast Image Tiler Application', () => {
     expect(defaultColor).toBe('#ffffff');
     
     const defaultOpacity = await page.locator('#background-opacity').inputValue();
-    expect(defaultOpacity).toBe('100');
+    expect(defaultOpacity).toBe('0');
     
     // Check that hex display shows the default color
     await expect(page.locator('#background-color-hex')).toHaveText('#ffffff');
-    await expect(page.locator('#background-opacity-value')).toHaveText('100%');
+    await expect(page.locator('#background-opacity-value')).toHaveText('0%');
   });
 
   test('should update background color when color picker changes', async ({ page }) => {

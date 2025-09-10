@@ -674,7 +674,9 @@ class RenderLoop {
             // Reload all tiles that were previously loaded
             const tilesToReload = [];
             for (const [tileIndex, tileData] of this.loadedTiles) {
-                const { col, row } = this.getTilePosition(tileIndex);
+                // Use stored position from tile data
+                const col = tileData.col;
+                const row = tileData.row;
                 // Check if this tile position is still valid in the new grid
                 if (col < numCols && row < numRows) {
                     tilesToReload.push({ tileIndex, tileData, col, row });
@@ -706,12 +708,16 @@ class RenderLoop {
                 }
             }
             
-            // Status updates removed to free up right sidebar
-            
-            // Update offset input ranges if a tile is selected (tile dimensions may have changed)
-            if (this.selectedTileIndex !== null && this.loadedTiles.has(this.selectedTileIndex)) {
-                this.updateSelectedTileInfo();
+            // Clear selection if the selected tile no longer exists
+            if (this.selectedTileIndex !== null && !this.loadedTiles.has(this.selectedTileIndex)) {
+                this.selectedTileIndex = null;
             }
+            
+            // Update tile list to reflect removed tiles
+            this.updateTileList();
+            
+            // Update selected tile info (will show "No tile selected" if selection was cleared)
+            this.updateSelectedTileInfo();
             
             // Restart animation if it was running, otherwise render single frame
             if (wasRunning) {
