@@ -63,7 +63,7 @@ class RenderLoop {
         this.lastPinchUpdateTime = 0;
         
         // Background color state
-        this.backgroundColor = { r: 255, g: 255, b: 255, a: 255 }; // Default white
+        this.backgroundColor = { r: 255, g: 255, b: 255, a: 0 }; // Default white with 0% opacity
         
         // Grid overlay state
         this.gridState = 'off'; // 'off', '3x3', or '5x5'
