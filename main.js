@@ -35,6 +35,16 @@ class RenderLoop {
         this.draggedTileIndex = null; // Track which tile is being dragged
         this.selectedTileIndex = null; // Track which tile is selected
         
+        // Drag offset state
+        this.isDraggingOffset = false;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.dragStartOffsetX = 0;
+        this.dragStartOffsetY = 0;
+        this.dragAnimationId = null;
+        this.lastDragUpdateTime = 0;
+        this.dragThrottleMs = 16; // ~60fps throttling for WASM updates
+        
         this.setupEventListeners();
     }
 
@@ -82,8 +92,11 @@ class RenderLoop {
             }
         });
         
-        // Add canvas click handler for tile selection
-        this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+        // Add canvas event handlers for tile selection and offset dragging
+        this.canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.handleCanvasMouseUp(e));
+        this.canvas.addEventListener('mouseleave', (e) => this.handleCanvasMouseLeave(e));
     }
 
     // Helper method to calculate grid position from tile index
@@ -115,23 +128,23 @@ class RenderLoop {
         return null; // No available slots
     }
     
-    // Handle canvas clicks to select tiles
-    handleCanvasClick(event) {
-        // Don't handle clicks during drag operations
+    // Handle canvas mouse down for tile selection and drag start
+    handleCanvasMouseDown(event) {
+        // Don't handle clicks during list tile drag operations
         if (this.draggedTileIndex !== null) {
             return;
         }
         
-        // Get click coordinates relative to canvas
+        // Get mouse coordinates relative to canvas
         const rect = this.canvas.getBoundingClientRect();
-        const clickX = event.clientX - rect.left;
-        const clickY = event.clientY - rect.top;
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
         
         // Account for canvas scaling (CSS vs actual canvas size)
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
-        const canvasX = clickX * scaleX;
-        const canvasY = clickY * scaleY;
+        const canvasX = mouseX * scaleX;
+        const canvasY = mouseY * scaleY;
         
         // Determine which tile was clicked
         const tileWidth = this.imageBuffer.tile_width;
@@ -155,23 +168,37 @@ class RenderLoop {
         });
         
         if (tileAtPosition) {
-            const [tileIndex, _] = tileAtPosition;
+            const [tileIndex, tileData] = tileAtPosition;
             
-            // Toggle selection
             if (this.selectedTileIndex === tileIndex) {
-                this.selectedTileIndex = null; // Deselect
+                // Clicked on already selected tile - start drag
+                this.isDraggingOffset = true;
+                this.dragStartX = event.clientX;
+                this.dragStartY = event.clientY;
+                this.dragStartOffsetX = tileData.offsetX || 0;
+                this.dragStartOffsetY = tileData.offsetY || 0;
+                this.lastDragUpdateTime = Date.now();
+                
+                // Start drag animation if main animation isn't running
+                if (!this.running) {
+                    this.startDragAnimation();
+                }
+                
+                // Prevent text selection during drag
+                event.preventDefault();
             } else {
-                this.selectedTileIndex = tileIndex; // Select
+                // Clicked on different tile - select it
+                this.selectedTileIndex = tileIndex;
+                
+                // Update visual state of all tiles
+                this.updateTileListSelection();
+                
+                // Update selected tile info in right sidebar
+                this.updateSelectedTileInfo();
+                
+                // Render to show selection
+                this.renderSingleFrame();
             }
-            
-            // Update visual state of all tiles
-            this.updateTileListSelection();
-            
-            // Update selected tile info in right sidebar
-            this.updateSelectedTileInfo();
-            
-            // Render to show/hide selection
-            this.renderSingleFrame();
         } else {
             // Clicked on empty tile - deselect any current selection
             if (this.selectedTileIndex !== null) {
@@ -180,6 +207,69 @@ class RenderLoop {
                 this.updateSelectedTileInfo();
                 this.renderSingleFrame();
             }
+        }
+    }
+
+    // Handle mouse move for drag offset updates
+    handleCanvasMouseMove(event) {
+        if (!this.isDraggingOffset || this.selectedTileIndex === null) {
+            return;
+        }
+
+        // Calculate mouse delta from drag start
+        const deltaX = event.clientX - this.dragStartX;
+        const deltaY = event.clientY - this.dragStartY;
+
+        // Calculate new offset values
+        const newOffsetX = this.dragStartOffsetX + deltaX;
+        const newOffsetY = this.dragStartOffsetY + deltaY;
+
+        // Get current tile dimensions for validation
+        const tileWidth = this.imageBuffer.tile_width;
+        const tileHeight = this.imageBuffer.tile_height;
+
+        // Clamp offsets to valid range
+        const clampedOffsetX = Math.max(-tileWidth, Math.min(tileWidth, newOffsetX));
+        const clampedOffsetY = Math.max(-tileHeight, Math.min(tileHeight, newOffsetY));
+
+        // Update tile data in memory
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        if (tileData) {
+            tileData.offsetX = clampedOffsetX;
+            tileData.offsetY = clampedOffsetY;
+
+            // Update UI inputs
+            this.tileOffsetXInput.value = Math.round(clampedOffsetX);
+            this.tileOffsetYInput.value = Math.round(clampedOffsetY);
+
+            // Throttled WASM update for performance
+            const now = Date.now();
+            if (now - this.lastDragUpdateTime >= this.dragThrottleMs) {
+                this.updateTileOffsetInWasm(tileData, clampedOffsetX, clampedOffsetY);
+                this.lastDragUpdateTime = now;
+            }
+
+            // Always render for smooth visual feedback
+            if (!this.running) {
+                // Use drag animation loop for smooth updates
+                if (this.dragAnimationId === null) {
+                    this.startDragAnimation();
+                }
+            }
+        }
+    }
+
+    // Handle mouse up to end drag
+    handleCanvasMouseUp(event) {
+        if (this.isDraggingOffset) {
+            this.finalizeDrag();
+        }
+    }
+
+    // Handle mouse leave to cancel drag
+    handleCanvasMouseLeave(event) {
+        if (this.isDraggingOffset) {
+            this.finalizeDrag();
         }
     }
 
@@ -558,6 +648,84 @@ class RenderLoop {
         }
     }
 
+    // Helper method to update tile offset in WASM (throttled during drag)
+    async updateTileOffsetInWasm(tileData, offsetX, offsetY) {
+        try {
+            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
+                tileData.imageData, 
+                tileData.col, 
+                tileData.row, 
+                tileData.scale || 1.0,
+                offsetX,
+                offsetY
+            );
+            
+            // Render to show updated offset
+            if (!this.running && this.dragAnimationId === null) {
+                this.renderSingleFrame();
+            }
+        } catch (error) {
+            console.error('Failed to update tile offset in WASM:', error);
+        }
+    }
+
+    // Start drag animation loop for smooth updates when main animation isn't running
+    startDragAnimation() {
+        if (this.dragAnimationId !== null) {
+            return; // Already running
+        }
+        
+        const animate = () => {
+            if (this.isDraggingOffset || (this.selectedTileIndex !== null && !this.running)) {
+                // Use frame 0 for static background pattern
+                this.drawFrameWithStaticBackground();
+                
+                // Use dynamic frame for marching ants animation
+                const animationFrame = Date.now() * 0.1;
+                this.drawMarchingAnts(animationFrame);
+                
+                this.dragAnimationId = requestAnimationFrame(animate);
+            } else {
+                this.dragAnimationId = null;
+            }
+        };
+        
+        this.dragAnimationId = requestAnimationFrame(animate);
+    }
+
+    // Stop drag animation loop
+    stopDragAnimation() {
+        if (this.dragAnimationId !== null) {
+            cancelAnimationFrame(this.dragAnimationId);
+            this.dragAnimationId = null;
+        }
+    }
+
+    // Finalize drag operation
+    async finalizeDrag() {
+        if (!this.isDraggingOffset) {
+            return;
+        }
+
+        this.isDraggingOffset = false;
+        
+        // Final WASM update with exact values
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        if (tileData) {
+            await this.updateTileOffsetInWasm(tileData, tileData.offsetX, tileData.offsetY);
+            console.log(`Drag completed: Tile offset updated to (${tileData.offsetX}, ${tileData.offsetY}) for tile at (${tileData.col}, ${tileData.row})`);
+        }
+
+        // Stop drag animation if main animation isn't running
+        if (!this.running) {
+            this.stopDragAnimation();
+            // Start selection animation for marching ants
+            if (this.selectedTileIndex !== null) {
+                this.startSelectionAnimation();
+            }
+        }
+    }
+
     async updateTileScale() {
         if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
             return;
@@ -750,8 +918,9 @@ class RenderLoop {
     start() {
         if (this.running) return;
         
-        // Stop selection animation since main animation will handle it
+        // Stop selection and drag animations since main animation will handle everything
         this.stopSelectionAnimation();
+        this.stopDragAnimation();
         
         this.running = true;
         this.startBtn.disabled = true;
@@ -768,9 +937,12 @@ class RenderLoop {
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
         
-        // Restart selection animation if a tile is selected
-        if (this.selectedTileIndex !== null) {
+        // Restart selection animation if a tile is selected and not dragging
+        if (this.selectedTileIndex !== null && !this.isDraggingOffset) {
             this.startSelectionAnimation();
+        } else if (this.isDraggingOffset) {
+            // Start drag animation for smooth dragging when main animation stops
+            this.startDragAnimation();
         }
     }
 
