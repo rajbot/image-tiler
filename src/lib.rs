@@ -421,6 +421,125 @@ impl ImageBuffer {
             .iter()
             .any(|tile| tile.col == col && tile.row == row && tile.has_image)
     }
+
+    #[wasm_bindgen]
+    pub fn create_proxy_from_bytes(
+        &self,
+        image_data: &[u8],
+        scale: f32,
+    ) -> Result<Vec<u8>, JsValue> {
+        // Decode the image
+        let img = image::load_from_memory(image_data)
+            .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
+
+        // Calculate scaled dimensions
+        let scaled_width = (self.tile_width as f32 * scale) as u32;
+        let scaled_height = (self.tile_height as f32 * scale) as u32;
+
+        // Resize with aspect ratio preservation
+        let resized_img = resize_preserve_aspect_ratio(img, scaled_width, scaled_height);
+        let rgba_img = resized_img.to_rgba8();
+
+        // Return the raw RGBA pixel data
+        Ok(rgba_img.into_raw())
+    }
+
+    #[wasm_bindgen]
+    pub fn get_proxy_dimensions(
+        &self,
+        image_data: &[u8],
+        scale: f32,
+    ) -> Result<Vec<u32>, JsValue> {
+        // Decode the image to get dimensions
+        let img = image::load_from_memory(image_data)
+            .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
+
+        // Calculate scaled dimensions
+        let scaled_width = (self.tile_width as f32 * scale) as u32;
+        let scaled_height = (self.tile_height as f32 * scale) as u32;
+
+        // Get the actual dimensions after aspect ratio preserving resize
+        let resized_img = resize_preserve_aspect_ratio(img, scaled_width, scaled_height);
+        
+        // Return [width, height]
+        Ok(vec![resized_img.width(), resized_img.height()])
+    }
+
+    #[wasm_bindgen]
+    pub fn load_rgba_proxy_with_offset(
+        &mut self,
+        rgba_data: &[u8],
+        proxy_width: u32,
+        proxy_height: u32,
+        col: u32,
+        row: u32,
+        offset_x: i32,
+        offset_y: i32,
+    ) -> Result<(), JsValue> {
+        // Validate tile position
+        if col >= self.num_cols || row >= self.num_rows {
+            return Err(JsValue::from_str(&format!(
+                "Invalid tile position ({}, {}). Grid is {}x{}",
+                col, row, self.num_cols, self.num_rows
+            )));
+        }
+
+        // Validate RGBA data length
+        let expected_len = (proxy_width * proxy_height * 4) as usize;
+        if rgba_data.len() != expected_len {
+            return Err(JsValue::from_str(&format!(
+                "Invalid RGBA data length. Expected {}, got {}",
+                expected_len, rgba_data.len()
+            )));
+        }
+
+        // Calculate absolute position in the full buffer
+        let tile_start_x = (col * self.tile_width) as usize;
+        let tile_start_y = (row * self.tile_height) as usize;
+
+        // Remove any existing tile info for this position, then add new one
+        self.loaded_tiles
+            .retain(|tile| tile.col != col || tile.row != row);
+        self.loaded_tiles.push(TileInfo {
+            col,
+            row,
+            has_image: true,
+        });
+
+        // Calculate offsets for positioning the proxy image within the tile
+        let center_x = (self.tile_width as i32 - proxy_width as i32) / 2;
+        let center_y = (self.tile_height as i32 - proxy_height as i32) / 2;
+
+        // Clear the entire target tile area first
+        for y in 0..self.tile_height as usize {
+            for x in 0..self.tile_width as usize {
+                let dst_index = ((tile_start_y + y) * self.width as usize + (tile_start_x + x)) * 4;
+
+                if dst_index + 3 < self.data.len() {
+                    // Calculate source coordinates with offsets
+                    let src_x = x as i32 - center_x - offset_x;
+                    let src_y = y as i32 - center_y - offset_y;
+
+                    if src_x >= 0 && src_y >= 0 && src_x < proxy_width as i32 && src_y < proxy_height as i32 {
+                        // Copy pixel from proxy RGBA data
+                        let src_index = ((src_y as u32 * proxy_width + src_x as u32) * 4) as usize;
+                        self.data[dst_index] = rgba_data[src_index]; // R
+                        self.data[dst_index + 1] = rgba_data[src_index + 1]; // G
+                        self.data[dst_index + 2] = rgba_data[src_index + 2]; // B
+                        self.data[dst_index + 3] = rgba_data[src_index + 3]; // A
+                    } else {
+                        // Background color for areas outside the proxy image
+                        self.data[dst_index] = self.background_r;
+                        self.data[dst_index + 1] = self.background_g;
+                        self.data[dst_index + 2] = self.background_b;
+                        self.data[dst_index + 3] = self.background_a;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn resize_preserve_aspect_ratio(

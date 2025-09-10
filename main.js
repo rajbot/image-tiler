@@ -461,12 +461,24 @@ class RenderLoop {
             // Update scale in tile data
             tileData.scale = newScale;
             
-            // Reload image with new scale and existing offsets
-            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
-                tileData.imageData, 
+            // Regenerate proxy data with new scale from original image (same as updateTileScale)
+            const proxyData = this.imageBuffer.create_proxy_from_bytes(tileData.imageData, newScale);
+            const proxyDimensions = this.imageBuffer.get_proxy_dimensions(tileData.imageData, newScale);
+            const proxyWidth = proxyDimensions[0];
+            const proxyHeight = proxyDimensions[1];
+            
+            // Update cached proxy data
+            tileData.proxyData = proxyData;
+            tileData.proxyWidth = proxyWidth;
+            tileData.proxyHeight = proxyHeight;
+
+            // Load the new proxy with existing offsets
+            await this.imageBuffer.load_rgba_proxy_with_offset(
+                proxyData,
+                proxyWidth,
+                proxyHeight,
                 tileData.col, 
                 tileData.row, 
-                newScale,
                 tileData.offsetX || 0,
                 tileData.offsetY || 0
             );
@@ -556,14 +568,40 @@ class RenderLoop {
     async reloadAllTiles() {
         for (const [tileIndex, tileData] of this.loadedTiles) {
             try {
-                await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
-                    tileData.imageData,
-                    tileData.col,
-                    tileData.row,
-                    tileData.scale || 1.0,
-                    tileData.offsetX || 0,
-                    tileData.offsetY || 0
-                );
+                // Use cached proxy data if available, otherwise regenerate from original
+                if (tileData.proxyData && tileData.proxyWidth && tileData.proxyHeight) {
+                    await this.imageBuffer.load_rgba_proxy_with_offset(
+                        tileData.proxyData,
+                        tileData.proxyWidth,
+                        tileData.proxyHeight,
+                        tileData.col,
+                        tileData.row,
+                        tileData.offsetX || 0,
+                        tileData.offsetY || 0
+                    );
+                } else {
+                    // Fallback to original method and regenerate proxy data
+                    const scale = tileData.scale || 1.0;
+                    const proxyData = this.imageBuffer.create_proxy_from_bytes(tileData.imageData, scale);
+                    const proxyDimensions = this.imageBuffer.get_proxy_dimensions(tileData.imageData, scale);
+                    const proxyWidth = proxyDimensions[0];
+                    const proxyHeight = proxyDimensions[1];
+                    
+                    // Update tile data with proxy
+                    tileData.proxyData = proxyData;
+                    tileData.proxyWidth = proxyWidth;
+                    tileData.proxyHeight = proxyHeight;
+                    
+                    await this.imageBuffer.load_rgba_proxy_with_offset(
+                        proxyData,
+                        proxyWidth,
+                        proxyHeight,
+                        tileData.col,
+                        tileData.row,
+                        tileData.offsetX || 0,
+                        tileData.offsetY || 0
+                    );
+                }
             } catch (error) {
                 console.error(`Failed to reload tile at (${tileData.col}, ${tileData.row}):`, error);
             }
@@ -602,19 +640,29 @@ class RenderLoop {
             
             const { col, row } = this.getTilePosition(tileIndex);
             
-            // Load image into Rust at specific tile position with proper centering
-            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(uint8Array, col, row, 1.0, 0, 0);
+            // Create proxy RGBA data for fast panning
+            const scale = 1.0;
+            const proxyData = this.imageBuffer.create_proxy_from_bytes(uint8Array, scale);
+            const proxyDimensions = this.imageBuffer.get_proxy_dimensions(uint8Array, scale);
+            const proxyWidth = proxyDimensions[0];
+            const proxyHeight = proxyDimensions[1];
             
-            // Store tile data
+            // Load the proxy into the tile using the new fast method
+            await this.imageBuffer.load_rgba_proxy_with_offset(proxyData, proxyWidth, proxyHeight, col, row, 0, 0);
+            
+            // Store tile data including both original and proxy
             this.loadedTiles.set(tileIndex, {
                 fileName: file.name,
-                imageData: uint8Array,
+                imageData: uint8Array,        // Original image data (for tile size changes)
+                proxyData: proxyData,         // Pre-decoded RGBA proxy (for fast panning)
+                proxyWidth: proxyWidth,       // Proxy dimensions
+                proxyHeight: proxyHeight,
                 tileIndex: tileIndex,
                 col: col,
                 row: row,
-                scale: 1.0, // Default scale 100%
-                offsetX: 0, // Default offset X 0px
-                offsetY: 0  // Default offset Y 0px
+                scale: scale,                 // Current scale
+                offsetX: 0,                   // Default offset X 0px
+                offsetY: 0                    // Default offset Y 0px
             });
             
             // Update tile list display
@@ -717,22 +765,35 @@ class RenderLoop {
             // Clear tiles that no longer fit
             this.loadedTiles.clear();
             
-            // Reload valid tiles
+            // Reload valid tiles with regenerated proxy data for new tile dimensions
             for (const { tileIndex, tileData, col, row } of tilesToReload) {
                 try {
-                    await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
-                        tileData.imageData, 
+                    // Regenerate proxy data since tile dimensions changed
+                    const scale = tileData.scale || 1.0;
+                    const proxyData = this.imageBuffer.create_proxy_from_bytes(tileData.imageData, scale);
+                    const proxyDimensions = this.imageBuffer.get_proxy_dimensions(tileData.imageData, scale);
+                    const proxyWidth = proxyDimensions[0];
+                    const proxyHeight = proxyDimensions[1];
+                    
+                    // Load using new proxy data
+                    await this.imageBuffer.load_rgba_proxy_with_offset(
+                        proxyData,
+                        proxyWidth,
+                        proxyHeight,
                         col, 
                         row, 
-                        tileData.scale || 1.0,
                         tileData.offsetX || 0,
                         tileData.offsetY || 0
                     );
-                    // Update tile data with potentially new position
+                    
+                    // Update tile data with new proxy and position
                     this.loadedTiles.set(tileIndex, {
                         ...tileData,
                         col: col,
-                        row: row
+                        row: row,
+                        proxyData: proxyData,
+                        proxyWidth: proxyWidth,
+                        proxyHeight: proxyHeight
                     });
                 } catch (error) {
                     console.error(`Failed to reload tile at (${col}, ${row}):`, error);
@@ -1022,14 +1083,28 @@ class RenderLoop {
     // Helper method to update tile offset in WASM (throttled during drag)
     async updateTileOffsetInWasm(tileData, offsetX, offsetY) {
         try {
-            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
-                tileData.imageData, 
-                tileData.col, 
-                tileData.row, 
-                tileData.scale || 1.0,
-                offsetX,
-                offsetY
-            );
+            // Use cached proxy data for fast panning if available
+            if (tileData.proxyData && tileData.proxyWidth && tileData.proxyHeight) {
+                await this.imageBuffer.load_rgba_proxy_with_offset(
+                    tileData.proxyData,
+                    tileData.proxyWidth,
+                    tileData.proxyHeight,
+                    tileData.col, 
+                    tileData.row, 
+                    offsetX,
+                    offsetY
+                );
+            } else {
+                // Fallback to original method for backwards compatibility
+                await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
+                    tileData.imageData, 
+                    tileData.col, 
+                    tileData.row, 
+                    tileData.scale || 1.0,
+                    offsetX,
+                    offsetY
+                );
+            }
             
             // Render to show updated offset
             if (!this.running && this.dragAnimationId === null) {
@@ -1122,12 +1197,24 @@ class RenderLoop {
             // Update scale in tile data
             tileData.scale = newScale;
 
-            // Reload image with new scale and existing offsets
-            await this.imageBuffer.load_image_from_bytes_with_scale_and_offset(
-                tileData.imageData, 
+            // Regenerate proxy data with new scale from original image
+            const proxyData = this.imageBuffer.create_proxy_from_bytes(tileData.imageData, newScale);
+            const proxyDimensions = this.imageBuffer.get_proxy_dimensions(tileData.imageData, newScale);
+            const proxyWidth = proxyDimensions[0];
+            const proxyHeight = proxyDimensions[1];
+            
+            // Update cached proxy data
+            tileData.proxyData = proxyData;
+            tileData.proxyWidth = proxyWidth;
+            tileData.proxyHeight = proxyHeight;
+
+            // Load the new proxy with existing offsets
+            await this.imageBuffer.load_rgba_proxy_with_offset(
+                proxyData,
+                proxyWidth,
+                proxyHeight,
                 tileData.col, 
                 tileData.row, 
-                newScale,
                 tileData.offsetX || 0,
                 tileData.offsetY || 0
             );
