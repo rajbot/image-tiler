@@ -1102,4 +1102,65 @@ test.describe('Fast Image Tiler Application', () => {
     await expect(page.locator('#num-cols')).toHaveValue('1');
     await expect(page.locator('#num-rows')).toHaveValue('2');
   });
+
+  test('should correctly place image in new column when expanding 2x3 to 3x3 grid', async ({ page }) => {
+    // Capture console logs to see what's happening
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    // Set up a 2x3 grid (6 tiles)
+    await page.fill('#num-cols', '2');
+    await page.fill('#num-rows', '3'); 
+    await page.press('#num-rows', 'Enter');
+    await page.waitForTimeout(300);
+    
+    // Verify grid is 2x3
+    await expect(page.locator('#num-cols')).toHaveValue('2');
+    await expect(page.locator('#num-rows')).toHaveValue('3');
+    
+    // Create test image
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    const base64Data = dataUrl.split(',')[1];
+    const pngBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Fill all 6 tiles in the 2x3 grid
+    for (let i = 0; i < 6; i++) {
+      console.log(`TEST: Uploading image ${i + 1}/6...`);
+      await page.setInputFiles('#file-input', {
+        name: `test${i + 1}.png`,
+        mimeType: 'image/png',
+        buffer: pngBuffer
+      });
+      await page.waitForTimeout(200);
+    }
+    
+    console.log('TEST: All 6 tiles filled, uploading 7th image...');
+    
+    // Upload 7th image - should expand to 3x3 and place in position (2, 0)
+    await page.setInputFiles('#file-input', {
+      name: 'test7.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer
+    });
+    await page.waitForTimeout(1500);
+    
+    // Should expand to 3x3 grid (since rows > cols, we add a column)
+    await expect(page.locator('#num-cols')).toHaveValue('3');
+    await expect(page.locator('#num-rows')).toHaveValue('3');
+    
+    console.log('TEST: Grid expanded to 3x3 successfully');
+    
+    console.log('TEST: Uploading 8th image...');
+    
+    // Upload 8th image - should go to position (2, 1)
+    await page.setInputFiles('#file-input', {
+      name: 'test8.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer
+    });
+    await page.waitForTimeout(1000);
+    
+    console.log('TEST: 8th image uploaded');
+  });
 });

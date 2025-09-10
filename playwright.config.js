@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:8001',
+    baseURL: 'http://localhost:8002',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -29,8 +29,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'python3 -m http.server 8001',
-    url: 'http://localhost:8001',
+    command: 'python3 -m http.server 8002',
+    url: 'http://localhost:8002',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

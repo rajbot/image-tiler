@@ -216,8 +216,50 @@ class RenderLoop {
         document.getElementById('num-cols').value = newCols;
         document.getElementById('num-rows').value = newRows;
 
-        // The first available index in the expanded grid will be the first tile of the new row/column
-        return currentCols * currentRows; // This is the first new tile index
+        // Remap existing loaded tiles to new grid layout
+        this.remapLoadedTilesForNewGrid(currentCols, currentRows, newCols, newRows);
+
+        // Calculate the correct index for the first tile in the new row or column
+        let firstNewIndex;
+        if (currentCols >= currentRows) {
+            // Added a new row - first tile is at the start of the new row
+            // Position: (0, currentRows) in the expanded grid
+            firstNewIndex = currentRows * newCols; // Start of new row
+        } else {
+            // Added a new column - first tile is at the top of the new column
+            // Position: (currentCols, 0) in the expanded grid  
+            firstNewIndex = currentCols; // Top of new column
+        }
+        
+        return firstNewIndex;
+    }
+
+    remapLoadedTilesForNewGrid(oldCols, oldRows, newCols, newRows) {
+        // Create new Map for remapped tiles
+        const newLoadedTiles = new Map();
+        
+        // Remap each existing tile to its new index
+        for (const [oldIndex, tileData] of this.loadedTiles.entries()) {
+            // Convert old index to position
+            const oldCol = oldIndex % oldCols;
+            const oldRow = Math.floor(oldIndex / oldCols);
+            
+            // Convert position to new index  
+            const newIndex = oldRow * newCols + oldCol;
+            
+            // Update tileData with new index and ensure col/row are correct
+            const newTileData = {
+                ...tileData,
+                tileIndex: newIndex,
+                col: oldCol,
+                row: oldRow
+            };
+            
+            newLoadedTiles.set(newIndex, newTileData);
+        }
+        
+        // Replace the loaded tiles Map
+        this.loadedTiles = newLoadedTiles;
     }
     
     // Handle canvas mouse down for tile selection and drag start
