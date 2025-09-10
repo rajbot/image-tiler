@@ -8,6 +8,15 @@ struct TileInfo {
     has_image: bool,
 }
 
+struct ProxyLoadParams {
+    proxy_width: u32,
+    proxy_height: u32,
+    col: u32,
+    row: u32,
+    offset_x: i32,
+    offset_y: i32,
+}
+
 #[wasm_bindgen]
 pub struct ImageBuffer {
     width: u32,
@@ -462,6 +471,7 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
     pub fn load_rgba_proxy_with_offset(
         &mut self,
         rgba_data: &[u8],
@@ -472,16 +482,32 @@ impl ImageBuffer {
         offset_x: i32,
         offset_y: i32,
     ) -> Result<(), JsValue> {
+        let params = ProxyLoadParams {
+            proxy_width,
+            proxy_height,
+            col,
+            row,
+            offset_x,
+            offset_y,
+        };
+        self.load_rgba_proxy_internal(rgba_data, params)
+    }
+
+    fn load_rgba_proxy_internal(
+        &mut self,
+        rgba_data: &[u8],
+        params: ProxyLoadParams,
+    ) -> Result<(), JsValue> {
         // Validate tile position
-        if col >= self.num_cols || row >= self.num_rows {
+        if params.col >= self.num_cols || params.row >= self.num_rows {
             return Err(JsValue::from_str(&format!(
                 "Invalid tile position ({}, {}). Grid is {}x{}",
-                col, row, self.num_cols, self.num_rows
+                params.col, params.row, self.num_cols, self.num_rows
             )));
         }
 
         // Validate RGBA data length
-        let expected_len = (proxy_width * proxy_height * 4) as usize;
+        let expected_len = (params.proxy_width * params.proxy_height * 4) as usize;
         if rgba_data.len() != expected_len {
             return Err(JsValue::from_str(&format!(
                 "Invalid RGBA data length. Expected {}, got {}",
@@ -491,21 +517,21 @@ impl ImageBuffer {
         }
 
         // Calculate absolute position in the full buffer
-        let tile_start_x = (col * self.tile_width) as usize;
-        let tile_start_y = (row * self.tile_height) as usize;
+        let tile_start_x = (params.col * self.tile_width) as usize;
+        let tile_start_y = (params.row * self.tile_height) as usize;
 
         // Remove any existing tile info for this position, then add new one
         self.loaded_tiles
-            .retain(|tile| tile.col != col || tile.row != row);
+            .retain(|tile| tile.col != params.col || tile.row != params.row);
         self.loaded_tiles.push(TileInfo {
-            col,
-            row,
+            col: params.col,
+            row: params.row,
             has_image: true,
         });
 
         // Calculate offsets for positioning the proxy image within the tile
-        let center_x = (self.tile_width as i32 - proxy_width as i32) / 2;
-        let center_y = (self.tile_height as i32 - proxy_height as i32) / 2;
+        let center_x = (self.tile_width as i32 - params.proxy_width as i32) / 2;
+        let center_y = (self.tile_height as i32 - params.proxy_height as i32) / 2;
 
         // Clear the entire target tile area first
         for y in 0..self.tile_height as usize {
@@ -514,16 +540,16 @@ impl ImageBuffer {
 
                 if dst_index + 3 < self.data.len() {
                     // Calculate source coordinates with offsets
-                    let src_x = x as i32 - center_x - offset_x;
-                    let src_y = y as i32 - center_y - offset_y;
+                    let src_x = x as i32 - center_x - params.offset_x;
+                    let src_y = y as i32 - center_y - params.offset_y;
 
                     if src_x >= 0
                         && src_y >= 0
-                        && src_x < proxy_width as i32
-                        && src_y < proxy_height as i32
+                        && src_x < params.proxy_width as i32
+                        && src_y < params.proxy_height as i32
                     {
                         // Copy pixel from proxy RGBA data
-                        let src_index = ((src_y as u32 * proxy_width + src_x as u32) * 4) as usize;
+                        let src_index = ((src_y as u32 * params.proxy_width + src_x as u32) * 4) as usize;
                         self.data[dst_index] = rgba_data[src_index]; // R
                         self.data[dst_index + 1] = rgba_data[src_index + 1]; // G
                         self.data[dst_index + 2] = rgba_data[src_index + 2]; // B
