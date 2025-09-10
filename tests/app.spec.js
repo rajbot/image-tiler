@@ -1163,4 +1163,137 @@ test.describe('Fast Image Tiler Application', () => {
     
     console.log('TEST: 8th image uploaded');
   });
+
+  // Multi-file selection tests
+  test('should load multiple images at once and expand grid accordingly', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    // Start with 2x2 grid (4 tiles)
+    await page.fill('#num-cols', '2');
+    await page.fill('#num-rows', '2'); 
+    await page.press('#num-rows', 'Enter');
+    await page.waitForTimeout(300);
+    
+    // Verify initial grid is 2x2
+    await expect(page.locator('#num-cols')).toHaveValue('2');
+    await expect(page.locator('#num-rows')).toHaveValue('2');
+    
+    // Create test image
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    const base64Data = dataUrl.split(',')[1];
+    const pngBuffer = Buffer.from(base64Data, 'base64');
+    
+    console.log('TEST: Loading 6 images at once...');
+    
+    // Upload 6 images at once - should expand grid to 3x2 (6 tiles)
+    const multipleFiles = [
+      { name: 'multi1.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'multi2.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'multi3.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'multi4.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'multi5.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'multi6.png', mimeType: 'image/png', buffer: pngBuffer }
+    ];
+    
+    await page.setInputFiles('#file-input', multipleFiles);
+    await page.waitForTimeout(2000);
+    
+    // Should expand to 2x3 grid to accommodate 6 images (cols >= rows, so add rows)
+    await expect(page.locator('#num-cols')).toHaveValue('2');
+    await expect(page.locator('#num-rows')).toHaveValue('3');
+    
+    console.log('TEST: Multi-file upload completed');
+  });
+
+  test('should handle mixed valid and invalid file types in multi-selection', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    // Create test files - mix of valid PNG and invalid TXT
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+    const txtBuffer = Buffer.from('This is not an image', 'utf-8');
+    
+    console.log('TEST: Loading mix of valid and invalid files...');
+    
+    // Set up dialog handler to catch validation alert
+    page.on('dialog', async dialog => {
+      expect(dialog.message()).toContain('Skipping');
+      expect(dialog.message()).toContain('invalid file');
+      await dialog.accept();
+    });
+    
+    const mixedFiles = [
+      { name: 'valid1.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'invalid.txt', mimeType: 'text/plain', buffer: txtBuffer },
+      { name: 'valid2.png', mimeType: 'image/png', buffer: pngBuffer }
+    ];
+    
+    await page.setInputFiles('#file-input', mixedFiles);
+    await page.waitForTimeout(1000);
+    
+    // Should load only the 2 valid PNG files
+    // Grid should remain 2x2 since we only have 2 valid images
+    await expect(page.locator('#num-cols')).toHaveValue('2');
+    await expect(page.locator('#num-rows')).toHaveValue('2');
+    
+    console.log('TEST: Mixed file validation completed');
+  });
+
+  test('should expand grid optimally for different multi-file scenarios', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+    
+    // Test scenario: 1x1 grid + 8 images = should become 3x3
+    await page.fill('#num-cols', '1');
+    await page.fill('#num-rows', '1'); 
+    await page.press('#num-rows', 'Enter');
+    await page.waitForTimeout(300);
+    
+    console.log('TEST: Loading 8 images into 1x1 grid...');
+    
+    const eightFiles = Array.from({ length: 8 }, (_, i) => ({
+      name: `bulk${i + 1}.png`,
+      mimeType: 'image/png',
+      buffer: pngBuffer
+    }));
+    
+    await page.setInputFiles('#file-input', eightFiles);
+    await page.waitForTimeout(2000);
+    
+    // Should expand to 3x3 grid (9 tiles) to accommodate 8 images
+    await expect(page.locator('#num-cols')).toHaveValue('3');
+    await expect(page.locator('#num-rows')).toHaveValue('3');
+    
+    console.log('TEST: Bulk expansion completed');
+  });
+
+  test('should maintain backward compatibility with single file selection', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    
+    await page.goto('/');
+    
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+    
+    console.log('TEST: Testing single file selection...');
+    
+    // Upload single image (should work just like before)
+    await page.setInputFiles('#file-input', {
+      name: 'single.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer
+    });
+    await page.waitForTimeout(500);
+    
+    // Verify it loaded successfully
+    const tileItems = await page.locator('.tile-item').count();
+    expect(tileItems).toBe(1);
+    
+    console.log('TEST: Single file compatibility verified');
+  });
 });

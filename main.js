@@ -79,7 +79,7 @@ class RenderLoop {
         this.stopBtn.addEventListener('click', () => this.stop());
         this.loadImageBtn.addEventListener('click', () => this.fileInput.click());
         this.gridToggleBtn.addEventListener('click', () => this.toggleGrid());
-        this.fileInput.addEventListener('change', (e) => this.handleImageLoad(e));
+        this.fileInput.addEventListener('change', (e) => this.handleMultipleImageLoad(e));
         
         // Add export functionality
         const exportBtn = document.getElementById('export-btn');
@@ -178,6 +178,28 @@ class RenderLoop {
     getTileIndex(col, row) {
         const numCols = parseInt(document.getElementById('num-cols').value);
         return row * numCols + col;
+    }
+
+    // Calculate required grid size to accommodate a given number of total tiles
+    calculateRequiredGridSize(totalTilesNeeded) {
+        const currentCols = parseInt(document.getElementById('num-cols').value);
+        const currentRows = parseInt(document.getElementById('num-rows').value);
+        
+        let cols = currentCols;
+        let rows = currentRows;
+        
+        // Expand grid until it can accommodate all tiles
+        while (cols * rows < totalTilesNeeded) {
+            if (cols >= rows) {
+                // Add a new row
+                rows++;
+            } else {
+                // Add a new column
+                cols++;
+            }
+        }
+        
+        return { cols, rows };
     }
 
     // Get the next available tile position
@@ -685,76 +707,150 @@ class RenderLoop {
         this.renderSingleFrame();
     }
 
-    async handleImageLoad(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    async handleMultipleImageLoad(event) {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
         
-        if (!file.type.match(/^image\/(jpeg|png)$/)) {
-            alert('Please select a JPEG or PNG image.');
+        // Validate all files first
+        const invalidFiles = [];
+        const validFiles = [];
+        
+        for (const file of files) {
+            if (!file.type.match(/^image\/(jpeg|png)$/)) {
+                invalidFiles.push(file.name);
+            } else {
+                validFiles.push(file);
+            }
+        }
+        
+        // Show validation results
+        if (invalidFiles.length > 0) {
+            const message = `Skipping ${invalidFiles.length} invalid file(s): ${invalidFiles.join(', ')}\nOnly JPEG and PNG images are supported.`;
+            alert(message);
+        }
+        
+        if (validFiles.length === 0) {
+            // Clear file input and return if no valid files
+            this.fileInput.value = '';
             return;
         }
         
-        // Find next available tile position (may expand grid automatically)
-        const originalCols = parseInt(document.getElementById('num-cols').value);
-        const originalRows = parseInt(document.getElementById('num-rows').value);
-        
-        const tileIndex = this.getNextAvailableTileIndex();
-        
-        // Check if grid was expanded
-        const newCols = parseInt(document.getElementById('num-cols').value);
-        const newRows = parseInt(document.getElementById('num-rows').value);
-        const gridExpanded = (newCols !== originalCols || newRows !== originalRows);
-        
-        if (gridExpanded) {
-            // Grid was expanded, need to regenerate it first
-            await this.regenerateGrid();
-        }
-        
         try {
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
+            // Calculate required grid size for all existing + new tiles
+            const totalTilesNeeded = this.loadedTiles.size + validFiles.length;
+            const { cols: requiredCols, rows: requiredRows } = this.calculateRequiredGridSize(totalTilesNeeded);
             
-            const { col, row } = this.getTilePosition(tileIndex);
+            const originalCols = parseInt(document.getElementById('num-cols').value);
+            const originalRows = parseInt(document.getElementById('num-rows').value);
             
-            // Create proxy RGBA data for fast panning
-            const scale = 1.0;
-            const proxyData = this.imageBuffer.create_proxy_from_bytes(uint8Array, scale);
-            const proxyDimensions = this.imageBuffer.get_proxy_dimensions(uint8Array, scale);
-            const proxyWidth = proxyDimensions[0];
-            const proxyHeight = proxyDimensions[1];
+            // Expand grid if needed
+            let gridExpanded = false;
+            if (requiredCols !== originalCols || requiredRows !== originalRows) {
+                console.log(`Expanding grid from ${originalCols}x${originalRows} to ${requiredCols}x${requiredRows} to accommodate ${validFiles.length} new images`);
+                
+                // Update UI inputs to required size
+                document.getElementById('num-cols').value = requiredCols;
+                document.getElementById('num-rows').value = requiredRows;
+                
+                // Remap existing tiles for new grid layout
+                this.remapLoadedTilesForNewGrid(originalCols, originalRows, requiredCols, requiredRows);
+                
+                // Regenerate grid with new dimensions
+                await this.regenerateGrid();
+                gridExpanded = true;
+            }
             
-            // Load the proxy into the tile using the new fast method
-            await this.imageBuffer.load_rgba_proxy_with_offset(proxyData, proxyWidth, proxyHeight, col, row, 0, 0);
+            // Load each valid file sequentially
+            let successCount = 0;
+            let failureCount = 0;
             
-            // Store tile data including both original and proxy
-            this.loadedTiles.set(tileIndex, {
-                fileName: file.name,
-                imageData: uint8Array,        // Original image data (for tile size changes)
-                proxyData: proxyData,         // Pre-decoded RGBA proxy (for fast panning)
-                proxyWidth: proxyWidth,       // Proxy dimensions
-                proxyHeight: proxyHeight,
-                tileIndex: tileIndex,
-                col: col,
-                row: row,
-                scale: scale,                 // Current scale
-                offsetX: 0,                   // Default offset X 0px
-                offsetY: 0                    // Default offset Y 0px
-            });
+            for (let i = 0; i < validFiles.length; i++) {
+                const file = validFiles[i];
+                
+                try {
+                    // Find next available tile position without triggering expansion
+                    // (we already expanded the grid above if needed)
+                    let tileIndex = null;
+                    const currentCols = parseInt(document.getElementById('num-cols').value);
+                    const currentRows = parseInt(document.getElementById('num-rows').value);
+                    const totalTiles = currentCols * currentRows;
+
+                    for (let j = 0; j < totalTiles; j++) {
+                        if (!this.loadedTiles.has(j)) {
+                            tileIndex = j;
+                            break;
+                        }
+                    }
+                    
+                    if (tileIndex === null) {
+                        console.error(`No available tile slot found for ${file.name}`);
+                        failureCount++;
+                        continue;
+                    }
+                    
+                    const { col, row } = this.getTilePosition(tileIndex);
+                    
+                    // Process the image
+                    const arrayBuffer = await file.arrayBuffer();
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    // Create proxy RGBA data for fast panning
+                    const scale = 1.0;
+                    const proxyData = this.imageBuffer.create_proxy_from_bytes(uint8Array, scale);
+                    const proxyDimensions = this.imageBuffer.get_proxy_dimensions(uint8Array, scale);
+                    const proxyWidth = proxyDimensions[0];
+                    const proxyHeight = proxyDimensions[1];
+                    
+                    // Load the proxy into the tile using the new fast method
+                    await this.imageBuffer.load_rgba_proxy_with_offset(proxyData, proxyWidth, proxyHeight, col, row, 0, 0);
+                    
+                    // Store tile data including both original and proxy
+                    this.loadedTiles.set(tileIndex, {
+                        fileName: file.name,
+                        imageData: uint8Array,        // Original image data (for tile size changes)
+                        proxyData: proxyData,         // Pre-decoded RGBA proxy (for fast panning)
+                        proxyWidth: proxyWidth,       // Proxy dimensions
+                        proxyHeight: proxyHeight,
+                        tileIndex: tileIndex,
+                        col: col,
+                        row: row,
+                        scale: scale,                 // Current scale
+                        offsetX: 0,                   // Default offset X 0px
+                        offsetY: 0                    // Default offset Y 0px
+                    });
+                    
+                    successCount++;
+                    console.log(`Image ${i + 1}/${validFiles.length} loaded successfully: ${file.name} at tile position (${col}, ${row})`);
+                    
+                } catch (error) {
+                    console.error(`Failed to load image ${file.name}:`, error);
+                    failureCount++;
+                }
+            }
             
             // Update tile list display
             this.updateTileList();
             
-            // Render immediately to show the loaded image
+            // Render to show all loaded images
             this.renderSingleFrame();
             
-            // Clear file input to allow re-selecting the same file
-            this.fileInput.value = '';
+            // Show summary message
+            if (validFiles.length > 1) {
+                let message = `Loaded ${successCount} of ${validFiles.length} images successfully`;
+                if (failureCount > 0) {
+                    message += ` (${failureCount} failed)`;
+                }
+                if (gridExpanded) {
+                    message += `\nGrid expanded to ${requiredCols}x${requiredRows}`;
+                }
+                console.log(message);
+            }
             
-            console.log(`Image loaded successfully at tile position (${col}, ${row})`);
         } catch (error) {
-            console.error('Failed to load image:', error);
-            alert('Failed to load image: ' + error.message);
-            // Clear file input even on error to allow re-selection
+            console.error('Failed to process multiple images:', error);
+            alert('Failed to process images: ' + error.message);
+        } finally {
+            // Clear file input to allow re-selecting the same files
             this.fileInput.value = '';
         }
     }
