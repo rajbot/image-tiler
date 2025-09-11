@@ -938,9 +938,11 @@ test.describe('Fast Image Tiler Application', () => {
     expect(hasMatchFunction).toBe(true);
   });
 
-  test('should show match aspect ratio button when tile is selected and hide when not', async ({ page }) => {
-    // Initially button should be hidden (no tile selected)
-    await expect(page.locator('#match-aspect-ratio-btn')).toBeHidden();
+  test('should enable/disable match aspect ratio button based on tile selection', async ({ page }) => {
+    // Initially button should be visible but disabled (no tile selected)
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeVisible();
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeDisabled();
+    await expect(page.locator('#match-aspect-ratio-btn')).toHaveText('Match Aspect Ratio of Image');
     
     // Simulate selecting a tile using the existing pattern from other tests
     await page.evaluate(() => {
@@ -962,9 +964,10 @@ test.describe('Fast Image Tiler Application', () => {
       }
     });
     
-    // Button should now be visible
+    // Button should now be enabled
     await expect(page.locator('#match-aspect-ratio-btn')).toBeVisible();
-    await expect(page.locator('#match-aspect-ratio-btn')).toHaveText('Match Aspect Ratio');
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeEnabled();
+    await expect(page.locator('#match-aspect-ratio-btn')).toHaveText('Match Aspect Ratio of Image');
     
     // Deselect tile
     await page.evaluate(() => {
@@ -975,8 +978,9 @@ test.describe('Fast Image Tiler Application', () => {
       }
     });
     
-    // Button should be hidden again
-    await expect(page.locator('#match-aspect-ratio-btn')).toBeHidden();
+    // Button should be disabled again
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeVisible();
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeDisabled();
   });
 
   // Background color functionality tests

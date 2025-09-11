@@ -1218,10 +1218,14 @@ class RenderLoop {
     }
 
     updateSelectedTileInfo() {
-        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+        const hasTileSelected = this.selectedTileIndex !== null && this.loadedTiles.has(this.selectedTileIndex);
+        
+        if (!hasTileSelected) {
             this.selectedTileInfo.innerHTML = '<em>No tile selected</em>';
             this.scaleControl.style.display = 'none';
             this.offsetControls.style.display = 'none';
+            // Disable Match Aspect Ratio button when no tile is selected
+            this.matchAspectRatioBtn.disabled = true;
         } else {
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.selectedTileInfo.textContent = `Selected: ${tileData.fileName}`;
@@ -1238,6 +1242,9 @@ class RenderLoop {
             this.tileOffsetXInput.setAttribute('max', `${tileWidth}`);
             this.tileOffsetYInput.setAttribute('min', `-${tileHeight}`);
             this.tileOffsetYInput.setAttribute('max', `${tileHeight}`);
+            
+            // Enable Match Aspect Ratio button when a tile is selected
+            this.matchAspectRatioBtn.disabled = false;
         }
         
         // Update interaction help text whenever tile selection changes
