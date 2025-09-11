@@ -471,6 +471,19 @@ impl ImageBuffer {
     }
 
     #[wasm_bindgen]
+    pub fn get_original_dimensions(&self, image_data: &[u8]) -> Result<Vec<u32>, JsValue> {
+        // Decode the image to get original dimensions
+        let img = image::load_from_memory(image_data)
+            .map_err(|e| JsValue::from_str(&format!("Failed to decode image: {}", e)))?;
+
+        // Get the original dimensions without any scaling or resizing
+        let (original_width, original_height) = img.dimensions();
+
+        // Return [width, height]
+        Ok(vec![original_width, original_height])
+    }
+
+    #[wasm_bindgen]
     #[allow(clippy::too_many_arguments)]
     pub fn load_rgba_proxy_with_offset(
         &mut self,

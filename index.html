@@ -465,6 +465,21 @@
             color: #666;
             font-weight: 500;
         }
+        .aspect-ratio-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #17a2b8;
+            color: white;
+            font-weight: 600;
+            margin-top: 8px;
+            width: 100%;
+        }
+        .aspect-ratio-btn:hover {
+            background-color: #138496;
+        }
         .offset-controls {
             margin-top: 15px;
         }
@@ -612,6 +627,7 @@
                         <input type="number" id="tile-scale" min="10" max="500" step="10" value="100">
                         <span class="scale-unit">%</span>
                     </div>
+                    <button id="match-aspect-ratio-btn" class="aspect-ratio-btn">Match Aspect Ratio</button>
                 </div>
                 <div id="offset-controls" class="offset-controls" style="display: none;">
                     <div class="offset-control">

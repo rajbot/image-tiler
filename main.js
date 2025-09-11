@@ -18,6 +18,7 @@ class RenderLoop {
         this.offsetControls = document.getElementById('offset-controls');
         this.tileOffsetXInput = document.getElementById('tile-offset-x');
         this.tileOffsetYInput = document.getElementById('tile-offset-y');
+        this.matchAspectRatioBtn = document.getElementById('match-aspect-ratio-btn');
         
         // Background color controls
         this.backgroundColorInput = document.getElementById('background-color');
@@ -150,6 +151,9 @@ class RenderLoop {
         // Add background color event listeners
         this.backgroundColorInput.addEventListener('input', () => this.updateBackgroundColor());
         this.backgroundOpacityInput.addEventListener('input', () => this.updateBackgroundOpacity());
+        
+        // Add aspect ratio matching event listener
+        this.matchAspectRatioBtn.addEventListener('click', () => this.matchTileAspectRatio());
         
         // Add canvas event handlers for tile selection and offset dragging
         this.canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
@@ -794,6 +798,11 @@ class RenderLoop {
                     const arrayBuffer = await file.arrayBuffer();
                     const uint8Array = new Uint8Array(arrayBuffer);
                     
+                    // Get original image dimensions before any scaling
+                    const originalDimensions = this.imageBuffer.get_original_dimensions(uint8Array);
+                    const originalWidth = originalDimensions[0];
+                    const originalHeight = originalDimensions[1];
+                    
                     // Create proxy RGBA data for fast panning
                     const scale = 1.0;
                     const proxyData = this.imageBuffer.create_proxy_from_bytes(uint8Array, scale);
@@ -808,6 +817,8 @@ class RenderLoop {
                     this.loadedTiles.set(tileIndex, {
                         fileName: file.name,
                         imageData: uint8Array,        // Original image data (for tile size changes)
+                        originalWidth: originalWidth, // Original image width before scaling
+                        originalHeight: originalHeight, // Original image height before scaling
                         proxyData: proxyData,         // Pre-decoded RGBA proxy (for fast panning)
                         proxyWidth: proxyWidth,       // Proxy dimensions
                         proxyHeight: proxyHeight,
@@ -1461,6 +1472,71 @@ class RenderLoop {
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.tileOffsetXInput.value = tileData.offsetX || 0;
             this.tileOffsetYInput.value = tileData.offsetY || 0;
+        }
+    }
+
+    async matchTileAspectRatio() {
+        if (this.selectedTileIndex === null || !this.loadedTiles.has(this.selectedTileIndex)) {
+            return;
+        }
+
+        const tileData = this.loadedTiles.get(this.selectedTileIndex);
+        const originalWidth = tileData.originalWidth;
+        const originalHeight = tileData.originalHeight;
+
+        if (!originalWidth || !originalHeight) {
+            console.warn('Original image dimensions not available for this tile');
+            return;
+        }
+
+        // Get current tile dimensions
+        const currentTileWidth = this.imageBuffer.tile_width;
+        const currentTileHeight = this.imageBuffer.tile_height;
+
+        // Check if already matching aspect ratio (within tolerance)
+        const currentRatio = currentTileWidth / currentTileHeight;
+        const imageRatio = originalWidth / originalHeight;
+        const tolerance = 0.01;
+
+        if (Math.abs(currentRatio - imageRatio) < tolerance) {
+            console.log('Tile dimensions already match image aspect ratio');
+            return;
+        }
+
+        let newTileWidth, newTileHeight;
+
+        // Case 1: Image fits within current tile dimensions
+        if (originalWidth <= currentTileWidth && originalHeight <= currentTileHeight) {
+            // Set tile to exact image dimensions
+            newTileWidth = originalWidth;
+            newTileHeight = originalHeight;
+            console.log(`Setting tile to exact image dimensions: ${newTileWidth}x${newTileHeight}`);
+        }
+        // Case 2: Image is larger - scale to maintain aspect ratio within current bounds
+        else {
+            // Calculate scale factors for both dimensions
+            const scaleX = currentTileWidth / originalWidth;
+            const scaleY = currentTileHeight / originalHeight;
+            
+            // Use the smaller scale to ensure image fits entirely within tile bounds
+            const scale = Math.min(scaleX, scaleY);
+            
+            newTileWidth = Math.round(originalWidth * scale);
+            newTileHeight = Math.round(originalHeight * scale);
+            console.log(`Scaling tile to fit image aspect ratio: ${newTileWidth}x${newTileHeight} (scale: ${scale.toFixed(3)})`);
+        }
+
+        // Update UI inputs
+        document.getElementById('tile-width').value = newTileWidth;
+        document.getElementById('tile-height').value = newTileHeight;
+
+        // Regenerate grid with new dimensions
+        try {
+            await this.regenerateGrid();
+            console.log(`Successfully matched tile aspect ratio for "${tileData.fileName}"`);
+        } catch (error) {
+            console.error('Failed to match tile aspect ratio:', error);
+            alert('Failed to match tile aspect ratio: ' + error.message);
         }
     }
 

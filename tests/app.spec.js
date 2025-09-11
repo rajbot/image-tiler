@@ -922,6 +922,63 @@ test.describe('Fast Image Tiler Application', () => {
     expect(hasPinchMethods).toBe(true);
   });
 
+  // Aspect ratio matching tests
+  test('should have match aspect ratio functionality available', async ({ page }, testInfo) => {
+    // Skip this test in Firefox and Safari due to WebAssembly function detection differences
+    if (testInfo.project.name === 'firefox' || testInfo.project.name === 'webkit') {
+      test.skip(true, 'Function detection test skipped in Firefox/Safari due to WASM binding differences');
+    }
+    
+    // Test basic functionality is present
+    const hasMatchFunction = await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      return !!(renderLoop && typeof renderLoop.matchTileAspectRatio === 'function');
+    });
+    
+    expect(hasMatchFunction).toBe(true);
+  });
+
+  test('should show match aspect ratio button when tile is selected and hide when not', async ({ page }) => {
+    // Initially button should be hidden (no tile selected)
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeHidden();
+    
+    // Simulate selecting a tile using the existing pattern from other tests
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.loadedTiles.set(0, {
+          fileName: 'test.png',
+          imageData: new Uint8Array([1, 2, 3]),
+          originalWidth: 800,
+          originalHeight: 600,
+          tileIndex: 0,
+          col: 0,
+          row: 0,
+          scale: 1.0
+        });
+        renderLoop.selectedTileIndex = 0;
+        renderLoop.updateTileList();
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Button should now be visible
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeVisible();
+    await expect(page.locator('#match-aspect-ratio-btn')).toHaveText('Match Aspect Ratio');
+    
+    // Deselect tile
+    await page.evaluate(() => {
+      const renderLoop = window.renderLoop;
+      if (renderLoop) {
+        renderLoop.selectedTileIndex = null;
+        renderLoop.updateSelectedTileInfo();
+      }
+    });
+    
+    // Button should be hidden again
+    await expect(page.locator('#match-aspect-ratio-btn')).toBeHidden();
+  });
+
   // Background color functionality tests
   test('should display background color controls', async ({ page }) => {
     // Check that background color controls are visible
