@@ -62,6 +62,10 @@ class RenderLoop {
         this.initialPinchDistance = 0;
         this.initialScale = 1.0;
         this.lastPinchUpdateTime = 0;
+
+        // Single-finger touch drag state (tracks whether the current one-finger
+        // touch started dragging the selected tile's offset)
+        this.isSingleTouchDragging = false;
         
         // Background color state
         this.backgroundColor = { r: 255, g: 255, b: 255, a: 0 }; // Default white with 0% opacity
@@ -161,10 +165,12 @@ class RenderLoop {
         this.canvas.addEventListener('mouseup', (e) => this.handleCanvasMouseUp(e));
         this.canvas.addEventListener('mouseleave', (e) => this.handleCanvasMouseLeave(e));
         
-        // Add touch event handlers for pinch-to-zoom
-        this.canvas.addEventListener('touchstart', (e) => this.handleCanvasTouchStart(e));
-        this.canvas.addEventListener('touchmove', (e) => this.handleCanvasTouchMove(e));
-        this.canvas.addEventListener('touchend', (e) => this.handleCanvasTouchEnd(e));
+        // Add touch event handlers for tap-to-select, single-finger drag, and
+        // pinch-to-zoom. These must be non-passive so preventDefault() works on
+        // iOS Safari (touch listeners default to passive there).
+        this.canvas.addEventListener('touchstart', (e) => this.handleCanvasTouchStart(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.handleCanvasTouchMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', (e) => this.handleCanvasTouchEnd(e), { passive: false });
         
         // Add wheel event handler for trackpad pinch-to-zoom
         this.canvas.addEventListener('wheel', (e) => this.handleCanvasWheel(e));
@@ -294,73 +300,79 @@ class RenderLoop {
         if (this.draggedTileIndex !== null) {
             return;
         }
-        
-        // Get mouse coordinates relative to canvas
+
+        this.selectOrDragAtPoint(event.clientX, event.clientY, event);
+    }
+
+    // Shared selection / drag-start logic for both mouse and touch input.
+    // Returns true if an offset drag was started on the selected tile.
+    selectOrDragAtPoint(clientX, clientY, event) {
+        // Get pointer coordinates relative to canvas
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        
+        const pointerX = clientX - rect.left;
+        const pointerY = clientY - rect.top;
+
         // Account for canvas scaling (CSS vs actual canvas size)
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
-        const canvasX = mouseX * scaleX;
-        const canvasY = mouseY * scaleY;
-        
-        // Determine which tile was clicked
+        const canvasX = pointerX * scaleX;
+        const canvasY = pointerY * scaleY;
+
+        // Determine which tile was tapped
         const tileWidth = this.imageBuffer.tile_width;
         const tileHeight = this.imageBuffer.tile_height;
         const col = Math.floor(canvasX / tileWidth);
         const row = Math.floor(canvasY / tileHeight);
-        
-        // Check if click is within grid bounds
+
+        // Check if tap is within grid bounds
         const numCols = parseInt(document.getElementById('num-cols').value);
         const numRows = parseInt(document.getElementById('num-rows').value);
         if (col >= numCols || row >= numRows || col < 0 || row < 0) {
-            return; // Click outside grid
+            return false; // Tap outside grid
         }
-        
-        // Find tile at this position
-        const clickedTileIndex = this.getTileIndex(col, row);
-        
+
         // Check if there's a loaded tile at this position
         const tileAtPosition = Array.from(this.loadedTiles.entries()).find(([_, tileData]) => {
             return tileData.col === col && tileData.row === row;
         });
-        
+
         if (tileAtPosition) {
             const [tileIndex, tileData] = tileAtPosition;
-            
+
             if (this.selectedTileIndex === tileIndex) {
-                // Clicked on already selected tile - start drag
+                // Tapped on already selected tile - start drag
                 this.isDraggingOffset = true;
-                this.dragStartX = event.clientX;
-                this.dragStartY = event.clientY;
+                this.dragStartX = clientX;
+                this.dragStartY = clientY;
                 this.dragStartOffsetX = tileData.offsetX || 0;
                 this.dragStartOffsetY = tileData.offsetY || 0;
                 this.lastDragUpdateTime = Date.now();
-                
+
                 // Start drag animation if main animation isn't running
                 if (!this.running) {
                     this.startDragAnimation();
                 }
-                
+
                 // Prevent text selection during drag
-                event.preventDefault();
+                if (event) {
+                    event.preventDefault();
+                }
+                return true;
             } else {
-                // Clicked on different tile - select it
+                // Tapped on different tile - select it
                 this.selectedTileIndex = tileIndex;
-                
+
                 // Update visual state of all tiles
                 this.updateTileListSelection();
-                
+
                 // Update selected tile info in right sidebar
                 this.updateSelectedTileInfo();
-                
+
                 // Render to show selection
                 this.renderSingleFrame();
             }
         } else {
-            // Clicked on empty tile - deselect any current selection
+            // Tapped on empty tile - deselect any current selection
             if (this.selectedTileIndex !== null) {
                 this.selectedTileIndex = null;
                 this.updateTileListSelection();
@@ -368,6 +380,8 @@ class RenderLoop {
                 this.renderSingleFrame();
             }
         }
+
+        return false;
     }
 
     // Handle mouse move for drag offset updates
@@ -376,9 +390,18 @@ class RenderLoop {
             return;
         }
 
-        // Calculate mouse delta from drag start
-        const deltaX = event.clientX - this.dragStartX;
-        const deltaY = event.clientY - this.dragStartY;
+        this.updateOffsetFromDrag(event.clientX, event.clientY);
+    }
+
+    // Shared offset-drag update for both mouse and touch input.
+    updateOffsetFromDrag(clientX, clientY) {
+        if (!this.isDraggingOffset || this.selectedTileIndex === null) {
+            return;
+        }
+
+        // Calculate pointer delta from drag start
+        const deltaX = clientX - this.dragStartX;
+        const deltaY = clientY - this.dragStartY;
 
         // Calculate new offset values
         const newOffsetX = this.dragStartOffsetX + deltaX;
@@ -433,83 +456,107 @@ class RenderLoop {
         }
     }
 
-    // Touch event handlers for pinch-to-zoom
+    // Touch event handlers: single finger taps/drags select and move tiles,
+    // two fingers pinch-to-zoom the selected tile.
     handleCanvasTouchStart(event) {
-        // Only handle if a tile is selected
-        if (this.selectedTileIndex === null) {
+        // Don't handle touches during list tile drag operations
+        if (this.draggedTileIndex !== null) {
             return;
         }
-        
-        // Prevent default touch behavior (scrolling, zooming)
-        event.preventDefault();
-        
+
         const touches = Array.from(event.touches);
-        
-        if (touches.length === 2) {
-            // Two fingers - start pinch gesture
+
+        if (touches.length === 1) {
+            // Single finger - select the tapped tile (or start dragging its offset
+            // if it's already selected). Handled by shared mouse/touch logic.
+            const startedDrag = this.selectOrDragAtPoint(
+                touches[0].clientX,
+                touches[0].clientY,
+                event
+            );
+
+            // Prevent scrolling/zooming while interacting with a tile
+            event.preventDefault();
+
+            // Remember whether this touch began an offset drag so touchmove
+            // knows to route to the drag handler instead of pinch.
+            this.isSingleTouchDragging = startedDrag;
+        } else if (touches.length === 2 && this.selectedTileIndex !== null) {
+            // Two fingers - start pinch gesture (requires a selected tile)
+            event.preventDefault();
+
+            // A pinch supersedes any in-progress single-finger drag
+            this.isSingleTouchDragging = false;
+
             this.isPinching = true;
             this.touchStartTouches = touches.map(touch => ({
                 x: touch.clientX,
                 y: touch.clientY
             }));
-            
+
             // Calculate initial distance between fingers
             this.initialPinchDistance = this.calculateTouchDistance(touches[0], touches[1]);
-            
+
             // Store current scale
             const tileData = this.loadedTiles.get(this.selectedTileIndex);
             this.initialScale = tileData ? tileData.scale : 1.0;
-            
+
             console.log(`Pinch started: distance=${this.initialPinchDistance}, scale=${this.initialScale}`);
         }
     }
 
     handleCanvasTouchMove(event) {
-        if (!this.isPinching || this.selectedTileIndex === null) {
-            return;
-        }
-        
-        // Prevent default touch behavior
-        event.preventDefault();
-        
         const touches = Array.from(event.touches);
-        
-        if (touches.length === 2) {
+
+        if (this.isPinching && this.selectedTileIndex !== null && touches.length === 2) {
+            // Prevent default touch behavior
+            event.preventDefault();
+
             // Calculate current distance between fingers
             const currentDistance = this.calculateTouchDistance(touches[0], touches[1]);
-            
+
             // Calculate scale factor
             const scaleFactor = currentDistance / this.initialPinchDistance;
             const newScale = Math.max(0.1, Math.min(5.0, this.initialScale * scaleFactor));
-            
+
             // Throttle updates for performance
             const now = Date.now();
             if (now - this.lastPinchUpdateTime >= this.dragThrottleMs) {
                 this.applyPinchScale(newScale);
                 this.lastPinchUpdateTime = now;
             }
+        } else if (this.isSingleTouchDragging && this.isDraggingOffset && touches.length === 1) {
+            // Single finger dragging the selected tile's offset
+            event.preventDefault();
+            this.updateOffsetFromDrag(touches[0].clientX, touches[0].clientY);
         }
     }
 
     handleCanvasTouchEnd(event) {
         // Prevent default touch behavior
         event.preventDefault();
-        
+
         const touches = Array.from(event.touches);
-        
-        if (touches.length < 2) {
+
+        if (touches.length < 2 && this.isPinching) {
             // End pinch gesture when less than 2 fingers remain
-            if (this.isPinching) {
-                console.log(`Pinch ended`);
-                this.isPinching = false;
-                this.touchStartTouches = [];
-                
-                // Apply final scale update
-                const tileData = this.loadedTiles.get(this.selectedTileIndex);
-                if (tileData) {
-                    this.updateTileScaleValue(Math.round(tileData.scale * 100));
-                }
+            console.log(`Pinch ended`);
+            this.isPinching = false;
+            this.touchStartTouches = [];
+
+            // Apply final scale update
+            const tileData = this.loadedTiles.get(this.selectedTileIndex);
+            if (tileData) {
+                this.updateTileScaleValue(Math.round(tileData.scale * 100));
             }
+        }
+
+        if (touches.length === 0) {
+            // All fingers lifted - finish any single-finger offset drag
+            if (this.isDraggingOffset) {
+                this.finalizeDrag();
+            }
+            this.isSingleTouchDragging = false;
         }
     }
 

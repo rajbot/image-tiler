@@ -12,6 +12,9 @@
         }
         canvas {
             border: 2px solid #333;
+            /* Let JS handle taps/drags/pinch instead of the browser scrolling
+               or zooming the page (needed for tile selection on iOS Safari). */
+            touch-action: none;
             background-image: 
                 linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc),
                 linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc);
